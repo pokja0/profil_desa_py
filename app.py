@@ -232,13 +232,23 @@ app_ui = ui.page_navbar(
                             class_="margin-10px"
                         )
                     )
-                ),
-                ui.layout_column_wrap(
-                    "Luas Wilayah"
                 )
             ),
             ui.nav_panel(
                 "Profil",
+                    # Container utama dengan CSS Grid
+                ui.div(
+                    ui.output_ui("jumlah_desa"),
+                    # Value Box 1
+                    ui.output_ui("kepemilikan_bkb"),
+                    ui.output_ui("kepemilikan_bkr"),
+                    ui.output_ui("kepemilikan_bkl"),
+                    ui.output_ui("kepemilikan_uppka"),
+                    ui.output_ui("kepemilikan_pikr"),
+                    ui.output_ui("kepemilikan_kkb"),
+                    ui.output_ui("kepemilikan_rdk"),
+                    class_="custom-grid"  # Class CSS untuk grid
+                ),
                 ui.layout_column_wrap(
                     ui.card(
                         output_widget("mapping")
@@ -790,7 +800,287 @@ def server(input, output, session):
     #                                     )
     #     return render.DataGrid(data_poktan)  
     
+    data_bkb = pl.read_csv("data/data_bkb.csv")
+    data_bkr = pl.read_csv("data/data_bkr.csv")
+    data_bkl = pl.read_csv("data/data_bkl.csv")
+    data_uppka = pl.read_csv("data/data_uppka.csv")
+    data_pikr = pl.read_csv("data/data_pikr.csv")
+    data_kkb = pl.read_csv("data/data_kkb.csv")
+    data_rdk = pl.read_csv("data/data_rdk.csv")
+    def jumlah_desa_pembanding():
+        filter_kabupaten = val_kab.get()
+        filter_kecamatan = val_kec.get()
+        filter_desa = val_desa.get()
+        filter_bulan = [input.pilih_bulan()]
+        return data_bkb.filter(
+                pl.col("KABUPATEN").is_in(filter_kabupaten),
+                pl.col("KECAMATAN").is_in(filter_kecamatan),
+                pl.col("KELURAHAN").is_in(filter_desa),
+                pl.col("BULAN").is_in(filter_bulan)
+            ).height
+
+    @render.ui
+    @reactive.event(input.action_button)
+    def jumlah_desa():
+        warna_fg = "#f6f8fa"
+        warna_bg = "#0B538E"
+        return ui.value_box(
+                "Desa/Kelurahan",
+                jumlah_desa_pembanding(),
+                theme=ui.ValueBoxTheme(
+                    class_="", 
+                    bg = warna_bg, 
+                    fg = warna_fg),
+                showcase_layout="bottom",
+                class_="custom-box",
+                showcase=faicons.icon_svg("circle-check")
+            )
+
+    @render.ui
+    @reactive.event(input.action_button)
+    def kepemilikan_bkb():
+        filter_kabupaten = val_kab.get()
+        filter_kecamatan = val_kec.get()
+        filter_desa = val_desa.get()
+        filter_bulan = [input.pilih_bulan()]
+
+        jumlah_bkb = data_bkb.filter(
+            pl.col("KABUPATEN").is_in(filter_kabupaten),
+            pl.col("KECAMATAN").is_in(filter_kecamatan),
+            pl.col("KELURAHAN").is_in(filter_desa),
+            pl.col("BULAN").is_in(filter_bulan)
+        ).select(pl.col("JUMLAH_BKB")).sum().item()
+
+        if jumlah_desa_pembanding() <= jumlah_bkb:
+            warna_fg = "#f6f8fa"
+            warna_bg = "#0B538E"
+            showcase = faicons.icon_svg("circle-check")
+        else:
+            warna_fg = "#f6f8fa"
+            warna_bg = "#B22222"
+            showcase = faicons.icon_svg("circle-xmark")
+        return ui.value_box(
+                "Jumlah BKB",
+                jumlah_bkb,
+                theme=ui.ValueBoxTheme(
+                    class_="", 
+                    bg = warna_bg, 
+                    fg = warna_fg),
+                showcase=showcase,
+                showcase_layout="bottom",
+                class_="custom-box"
+            )
     
+    @render.ui
+    @reactive.event(input.action_button)
+    def kepemilikan_bkr():
+        filter_kabupaten = val_kab.get()
+        filter_kecamatan = val_kec.get()
+        filter_desa = val_desa.get()
+        filter_bulan = [input.pilih_bulan()]
+
+        jumlah_bkr = data_bkr.filter(
+            pl.col("KABUPATEN").is_in(filter_kabupaten),
+            pl.col("KECAMATAN").is_in(filter_kecamatan),
+            pl.col("KELURAHAN").is_in(filter_desa),
+            pl.col("BULAN").is_in(filter_bulan)
+        ).select(pl.col("JUMLAH_BKR")).sum().item()
+
+        if jumlah_desa_pembanding() <= jumlah_bkr:
+            warna_fg = "#f6f8fa"
+            warna_bg = "#0B538E"
+            showcase = faicons.icon_svg("circle-check")
+        else:
+            warna_fg = "#f6f8fa"
+            warna_bg = "#B22222"
+            showcase = faicons.icon_svg("circle-xmark")
+        return ui.value_box(
+                "Jumlah BKR",
+                jumlah_bkr,
+                theme=ui.ValueBoxTheme(
+                    class_="", 
+                    bg = warna_bg, 
+                    fg = warna_fg),
+                showcase=showcase,
+                showcase_layout="bottom",
+                class_="custom-box"
+            )
+    
+    @render.ui
+    @reactive.event(input.action_button)
+    def kepemilikan_bkl():
+        filter_kabupaten = val_kab.get()
+        filter_kecamatan = val_kec.get()
+        filter_desa = val_desa.get()
+        filter_bulan = [input.pilih_bulan()]
+
+        jumlah_bkl = data_bkl.filter(
+            pl.col("KABUPATEN").is_in(filter_kabupaten),
+            pl.col("KECAMATAN").is_in(filter_kecamatan),
+            pl.col("KELURAHAN").is_in(filter_desa),
+            pl.col("BULAN").is_in(filter_bulan)
+        ).select(pl.col("JUMLAH_BKL")).sum().item()
+
+        if jumlah_desa_pembanding() <= jumlah_bkl:
+            warna_fg = "#f6f8fa"
+            warna_bg = "#0B538E"
+            showcase = faicons.icon_svg("circle-check")
+        else:
+            warna_fg = "#f6f8fa"
+            warna_bg = "#B22222"
+            showcase = faicons.icon_svg("circle-xmark")
+        return ui.value_box(
+                "Jumlah BKL",
+                jumlah_bkl,
+                theme=ui.ValueBoxTheme(
+                    class_="", 
+                    bg = warna_bg, 
+                    fg = warna_fg),
+                showcase=showcase,
+                showcase_layout="bottom",
+                class_="custom-box"
+            )
+
+    @render.ui
+    @reactive.event(input.action_button)
+    def kepemilikan_uppka():
+        filter_kabupaten = val_kab.get()
+        filter_kecamatan = val_kec.get()
+        filter_desa = val_desa.get()
+        filter_bulan = [input.pilih_bulan()]
+
+        jumlah_uppka = data_uppka.filter(
+            pl.col("KABUPATEN").is_in(filter_kabupaten),
+            pl.col("KECAMATAN").is_in(filter_kecamatan),
+            pl.col("KELURAHAN").is_in(filter_desa),
+            pl.col("BULAN").is_in(filter_bulan)
+        ).select(pl.col("JUMLAH_UPPKA")).sum().item()
+
+        if jumlah_desa_pembanding() <= jumlah_uppka:
+            warna_fg = "#f6f8fa"
+            warna_bg = "#0B538E"
+            showcase = faicons.icon_svg("circle-check")
+        else:
+            warna_fg = "#f6f8fa"
+            warna_bg = "#B22222"
+            showcase = faicons.icon_svg("circle-xmark")
+        return ui.value_box(
+                "Jumlah UPPKA",
+                jumlah_uppka,
+                theme=ui.ValueBoxTheme(
+                    class_="", 
+                    bg = warna_bg, 
+                    fg = warna_fg),
+                showcase=showcase,
+                showcase_layout="bottom",
+                class_="custom-box"
+            )
+    
+    @render.ui
+    @reactive.event(input.action_button)
+    def kepemilikan_pikr():
+        filter_kabupaten = val_kab.get()
+        filter_kecamatan = val_kec.get()
+        filter_desa = val_desa.get()
+        filter_bulan = [input.pilih_bulan()]
+
+        jumlah_pikr = data_pikr.filter(
+            pl.col("KABUPATEN").is_in(filter_kabupaten),
+            pl.col("KECAMATAN").is_in(filter_kecamatan),
+            pl.col("KELURAHAN").is_in(filter_desa),
+            pl.col("BULAN").is_in(filter_bulan)
+        ).select(pl.col("JUMLAH_PIKR")).sum().item()
+
+        if jumlah_desa_pembanding() <= jumlah_pikr:
+            warna_fg = "#f6f8fa"
+            warna_bg = "#0B538E"
+            showcase = faicons.icon_svg("circle-check")
+        else:
+            warna_fg = "#f6f8fa"
+            warna_bg = "#B22222"
+            showcase = faicons.icon_svg("circle-xmark")
+        return ui.value_box(
+                "Jumlah PIK-R",
+                jumlah_pikr,
+                theme=ui.ValueBoxTheme(
+                    class_="", 
+                    bg = warna_bg, 
+                    fg = warna_fg),
+                showcase=showcase,
+                showcase_layout="bottom",
+                class_="custom-box"
+            )
+    
+    @render.ui
+    @reactive.event(input.action_button)
+    def kepemilikan_kkb():
+        filter_kabupaten = val_kab.get()
+        filter_kecamatan = val_kec.get()
+        filter_desa = val_desa.get()
+        filter_bulan = [input.pilih_bulan()]
+
+        jumlah_kkb = data_kkb.filter(
+            pl.col("KABUPATEN").is_in(filter_kabupaten),
+            pl.col("KECAMATAN").is_in(filter_kecamatan),
+            pl.col("KELURAHAN").is_in(filter_desa),
+            pl.col("BULAN").is_in(filter_bulan)
+        ).select(pl.col("JUMLAH_KKB")).sum().item()
+
+        if jumlah_desa_pembanding() <= jumlah_kkb:
+            warna_fg = "#f6f8fa"
+            warna_bg = "#0B538E"
+            showcase = faicons.icon_svg("circle-check")
+        else:
+            warna_fg = "#f6f8fa"
+            warna_bg = "#B22222"
+            showcase = faicons.icon_svg("circle-xmark")
+        return ui.value_box(
+                "Jumlah KKB",
+                jumlah_kkb,
+                theme=ui.ValueBoxTheme(
+                    class_="", 
+                    bg = warna_bg, 
+                    fg = warna_fg),
+                showcase=showcase,
+                showcase_layout="bottom",
+                class_="custom-box"
+            )
+
+    @render.ui
+    @reactive.event(input.action_button)
+    def kepemilikan_rdk():
+        filter_kabupaten = val_kab.get()
+        filter_kecamatan = val_kec.get()
+        filter_desa = val_desa.get()
+        filter_bulan = [input.pilih_bulan()]
+
+        jumlah_rdk = data_rdk.filter(
+            pl.col("KABUPATEN").is_in(filter_kabupaten),
+            pl.col("KECAMATAN").is_in(filter_kecamatan),
+            pl.col("KELURAHAN").is_in(filter_desa),
+            pl.col("BULAN").is_in(filter_bulan)
+        ).select(pl.col("JUMLAH_RDK")).sum().item()
+
+        if jumlah_desa_pembanding() <= jumlah_rdk:
+            warna_fg = "#f6f8fa"
+            warna_bg = "#0B538E"
+            showcase = faicons.icon_svg("circle-check")
+        else:
+            warna_fg = "#f6f8fa"
+            warna_bg = "#B22222"
+            showcase = faicons.icon_svg("circle-xmark")
+        return ui.value_box(
+                "Jumlah RDK",
+                jumlah_rdk,
+                theme=ui.ValueBoxTheme(
+                    class_="", 
+                    bg = warna_bg, 
+                    fg = warna_fg),
+                showcase=showcase,
+                showcase_layout="bottom",
+                class_="custom-box"
+            )
+
     @render.ui
     @reactive.event(input.action_button)
     def kepemilikan_poktan():
