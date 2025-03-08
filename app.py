@@ -3,7 +3,8 @@ import shinyswatch
 from htmltools import css
 
 import polars as pl
-from shinywidgets import output_widget, render_widget  
+from shinywidgets import output_widget, render_widget
+
 import plotly.express as px
 import plotly.io as pio 
 import faicons
@@ -73,6 +74,22 @@ def bulan_hingga(bulan_terpilih):
 def format_number(number):
     return f"{number:,}".replace(",", ".")
 
+# Mengurutkan bulan sesuai urutan kronologis
+month_order = {
+    'JANUARI': 1,
+    'FEBRUARI': 2,
+    'MARET': 3,
+    'APRIL': 4,
+    'MEI': 5,
+    'JUNI': 6,
+    'JULI': 7,
+    'AGUSTUS': 8,
+    'SEPTEMBER': 9,
+    'OKTOBER': 10,
+    'NOVEMBER': 11,
+    'DESEMBER': 12
+}
+
 app_ui = ui.page_navbar(
     ui.head_content(ui.include_css("www/style.css")),
     ui.nav_panel(
@@ -92,6 +109,7 @@ app_ui = ui.page_navbar(
         ),
         ui.br(),
         ui.h6(
+            ui.p(""),
             ui.output_text("judul_wilayah"),
             class_="text-lg-center text-left",
         ),
@@ -251,7 +269,7 @@ app_ui = ui.page_navbar(
                 ),
                 ui.layout_column_wrap(
                     ui.card(
-                        output_widget("mapping")
+                        "Administrasi",
                     ),
                     ui.card(
                         ui.layout_column_wrap(
@@ -277,41 +295,32 @@ app_ui = ui.page_navbar(
             ui.nav_panel(
                 "Keluarga Berencana",
                     ui.layout_column_wrap(
-                        ui.output_ui("vb_unmet_need"),
-                        ui.output_ui("vb_tenakes"),
-                        ui.output_ui("vb_tp_kb"),
-                        ui.output_ui("vb_mkjp")
-                    ),
-                    ui.layout_column_wrap(
-                        ui.value_box(
-                            "Pasangan Usia Subur",
-                            value=ui.output_ui("text_jumlah_pus"),
-                            showcase=output_widget("line_vb_pus"),
-                            theme=ui.ValueBoxTheme(class_="", bg = "#f6f8fa", fg = "#0B538E"),
-                            showcase_layout="bottom",
+                        ui.card(
+                            output_widget("tren_pus"),  
+                            full_screen=True
                         ),
-                        ui.value_box(
-                            "MCPR",
-                            value=ui.output_ui("text_jumlah_mcpr"),
-                            showcase=output_widget("line_vb_mcpr"),
-                            theme=ui.ValueBoxTheme(class_="", bg = "#f6f8fa", fg = "#0B538E"),
-                            showcase_layout="bottom",
-                        )
-                    ),
-                    ui.card(
-                        ui.layout_column_wrap(
-                            output_widget("bar_mix_kontrasepsi"),
-                            output_widget("line_pa"),
-                            output_widget("donut_status_pelatihan")
+                        ui.card(
+                            output_widget("tren_pa"),  
+                            full_screen=True
+                        ),
+                        ui.card(
+                            output_widget("tren_unmet_need"),  
+                            full_screen=True
                         )
                     ),
                     ui.layout_column_wrap(
-                        ui.tags.h1("Rekap dan Rincian Status Pelatihan", style="font-size: 24px; font-weight: bold; margin: 20px 0; text-align: center; color:black")
-
-                    ),
-                    ui.layout_column_wrap(
-                        ui.output_ui("rekap_tabel_bidan"),
-                        ui.output_ui("tabel_bidan")
+                        ui.card(
+                            output_widget("tren_mkjp"),  
+                            full_screen=True
+                        ),
+                        ui.card(
+                            output_widget("ganti2"),  
+                            full_screen=True
+                        ),
+                        ui.card(
+                            output_widget("ganti"),  
+                            full_screen=True
+                        )
                     )
             ),
             ui.nav_panel(
@@ -385,13 +394,13 @@ def server(input, output, session):
         profil = "PROFIL"
         bulan = input.pilih_bulan()
         if input.pilih_kab() == "SEMUA KABUPATEN":
-            teks = profil + " - PROVINSI SULAWESI BARAT - " + bulan
+            teks = profil + " - PROVINSI SULAWESI BARAT - " + bulan + " 2025"
         elif input.pilih_kab() != "SEMUA KABUPATEN" and input.pilih_kec() == "SEMUA KECAMATAN":
-            teks = profil + " - KABUPATEN " + input.pilih_kab() + " - " + bulan
+            teks = profil + " - KABUPATEN " + input.pilih_kab() + " - " + bulan + " 2025"
         elif input.pilih_kab() != "SEMUA KABUPATEN" and input.pilih_kec() != "SEMUA KECAMATAN" and input.pilih_desa() == "SEMUA DESA/KELURAHAN":
-            teks = profil + " - KECAMATAN " + input.pilih_kec() + " - " + bulan
+            teks = profil + " - KECAMATAN " + input.pilih_kec() + " - " + bulan + " 2025"
         else:
-            teks = profil + " - DESA/KELURAHAN " + input.pilih_desa() + " - " + bulan
+            teks = profil + " - DESA/KELURAHAN " + input.pilih_desa() + " - " + bulan + " 2025"
 
         return "\n" + teks
 
@@ -1394,854 +1403,216 @@ def server(input, output, session):
     ### akhir profil
 
     ### awal KB
-
+    data_pus = pl.read_csv("data/data_pus.csv")
+    data_mix = pl.read_csv("data/data_mix_kontra.csv")
+    @render_widget
+    @reactive.event(input.action_button)
+    def tren_pus():
         filter_kabupaten = val_kab.get()
         filter_kecamatan = val_kec.get()
         filter_desa = val_desa.get()
         filter_bulan = input.pilih_bulan()
-        data_pus_unmet_need = pl.read_excel("data/data_pus.xlsx")
+        aggregated =  data_pus.filter(
+            pl.col("KABUPATEN").is_in(filter_kabupaten),
+            pl.col("KECAMATAN").is_in(filter_kecamatan),
+            pl.col("KELURAHAN").is_in(filter_desa),
+            pl.col("BULAN").is_in(bulan_hingga(filter_bulan))
+        ).group_by(
+            'PROVINSI', 'BULAN'
+        ).agg([
+            pl.col("PUS").sum()
+        ]).with_columns(
+            pl.col("BULAN").replace(month_order).alias("month_num")
+        ).sort("month_num").drop("month_num")
 
-        def bulan_hingga(bulan_terpilih):
-            daftar_bulan = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"]
-            index = daftar_bulan.index(bulan_terpilih)
-            return daftar_bulan[:index + 1]
-
-        hingga_bulan = bulan_hingga(filter_bulan)
-
-        data_pus_unmet_need = data_pus_unmet_need.filter(
-            pl.col("Kabupaten").is_in(filter_kabupaten),
-            pl.col("Kecamatan").is_in(filter_kecamatan),
-            pl.col("Kelurahan_Desa").is_in(filter_desa),
-            pl.col("Bulan").is_in(hingga_bulan)
+        # Hitung nilai minimum untuk sumbu Y (Januari - 10%)
+        nilai_januari = aggregated.filter(pl.col("BULAN") == "JANUARI")["PUS"][0]
+        y_min = nilai_januari - (nilai_januari * 0.01)  # Januari - 10%
+        max_value = aggregated["PUS"].max() * 1.01
+        fig = px.line(
+            aggregated,  # Langsung gunakan Polars DataFrame
+            x="BULAN",
+            y="PUS",
+            title="Tren Total PUS",
+            labels={"BULAN": "Bulan ", "PUS": "Jumlah PUS "},
+            markers=True  # Menambahkan dot (marker) di setiap titik
         )
-        data_pus_unmet_need = data_pus_unmet_need.group_by("Bulan").agg(
-            [
-                pl.sum("PUS").alias("PUS"),
-                pl.sum("Unmet Need").alias("Unmet Need")
-            ]
-        )
-
-        # Buat kolom baru yang merupakan hasil pembagian 'total_nilai1' dengan 'total_nilai2'
-        data_pus_unmet_need = data_pus_unmet_need.with_columns(
-            (pl.col("Unmet Need") / pl.col("PUS") *100 ).alias("Unmet Need(%)")
-        )
-
-        data_pus_unmet_need = data_pus_unmet_need.with_columns(
-            pl.col("Unmet Need(%)").round(2)
-        )
-
-        #data_pus_unmet_need
-        df_pandas = data_pus_unmet_need.to_pandas()
-
-        # Peta urutan bulan
-        bulan_urut = {
-            "JANUARI": 1,
-            "FEBRUARI": 2,
-            "MARET": 3,
-            "APRIL": 4,
-            "MEI": 5,
-            "JUNI": 6,
-            "JULI": 7,
-            "AGUSTUS": 8,
-            "SEPTEMBER": 9,
-            "OKTOBER": 10,
-            "NOVEMBER": 11,
-            "DESEMBER": 12
-        }
-
-        # Tambahkan kolom urutan bulan di pandas DataFrame
-        df_pandas['Bulan_urut'] = df_pandas['Bulan'].map(bulan_urut)
-
-        # Urutkan DataFrame berdasarkan urutan bulan
-        df_pandas = df_pandas.sort_values(by='Bulan_urut')
-
-        # Buang kolom urutan bulan setelah pengurutan
-        df_pandas = df_pandas.drop(columns=['Bulan_urut'])
-
-
-        # Buat line chart menggunakan Plotly
-        fig = px.line(df_pandas, x="Bulan", y="Unmet Need(%)", markers=True)
-
-        # Atur judul dan label sumbu
+        
+        fig.update_yaxes(
+            range=[y_min, max_value],
+            tickformat=",.0f")  # `None` untuk batas atas otomatis 
+         
         fig.update_layout(
-            title="Line Chart of PUS, Unmet Need, and Unmet Need(%)",
-            xaxis_title="Bulan",
-            yaxis_title="Values",
-            legend_title="Metrics"
+            showlegend=False,
+            paper_bgcolor="#f6f8fa",
+            plot_bgcolor="#f6f8fa",
+            margin=dict(l=50, r=50, t=80, b=50)  # Padding: kiri, kanan, atas, bawah
         )
-        fig.update_traces(showlegend=False)
-
         fig.update_traces(
-            line_color="#406EF1",
-            line_width=1,
-            fill="tozeroy",
-            fillcolor="rgba(64,110,241,0.2)",
-            hoverinfo="y",
-        )
-
-        fig.update_xaxes(visible=False, showgrid=False)
-        fig.update_yaxes(visible=False, showgrid=False)
-        fig.update_layout(
-            height=100,
-            hovermode="x",
-            margin=dict(t=0, r=0, l=0, b=0),
-            plot_bgcolor="rgba(0,0,0,0)",
-            paper_bgcolor="rgba(0,0,0,0)",
+            hovertemplate="Bulan = %{x}<br>Jumlah PUS = %{y}"
         )
         return fig
 
-    @render.ui
+    @render_widget
     @reactive.event(input.action_button)
-    def vb_unmet_need():
+    def tren_pa():
         filter_kabupaten = val_kab.get()
         filter_kecamatan = val_kec.get()
         filter_desa = val_desa.get()
         filter_bulan = input.pilih_bulan()
-        data_pus = pl.read_excel("data/data_pus.xlsx")
+        aggregated =  data_mix.filter(
+            pl.col("KABUPATEN").is_in(filter_kabupaten),
+            pl.col("KECAMATAN").is_in(filter_kecamatan),
+            pl.col("KELURAHAN").is_in(filter_desa),
+            pl.col("BULAN").is_in(bulan_hingga(filter_bulan))
+        ).group_by(
+            'PROVINSI', 'BULAN'
+        ).agg([
+            pl.col("PA").sum()
+        ])
 
-        data_pus = data_pus.filter(
-            pl.col("Kabupaten").is_in(filter_kabupaten),
-            pl.col("Kecamatan").is_in(filter_kecamatan),
-            pl.col("Kelurahan_Desa").is_in(filter_desa),
-            pl.col("Bulan").is_in([filter_bulan])
+        aggregated = aggregated.with_columns(
+            pl.col("BULAN").replace(month_order).alias("month_num")
+        ).sort("month_num").drop("month_num")
+
+        # Hitung nilai minimum untuk sumbu Y (Januari - 10%)
+        nilai_januari = aggregated.filter(pl.col("BULAN") == "JANUARI")["PA"][0]
+        y_min = nilai_januari - (nilai_januari * 0.1)  # Januari - 10%
+        max_value = aggregated["PA"].max() * 1.05
+
+        fig = px.line(
+            aggregated,  # Langsung gunakan Polars DataFrame
+            x="BULAN",
+            y="PA",
+            title="Tren Total PA",
+            labels={"BULAN": "Bulan", "PA": "Jumlah PA"},
+            markers=True  # Menambahkan dot (marker) di setiap titik
         )
-        unmet_need_bulan_ini = round(data_pus["Unmet Need"].sum() / data_pus["PUS"].sum() *100, 2)
-        #unmet_need_bulan_ini
-
-        data_pus_bulan_lalu = pl.read_excel("data/data_pus.xlsx")
-
-        data_pus_bulan_lalu = data_pus_bulan_lalu.filter(
-            pl.col("Kabupaten").is_in(filter_kabupaten),
-            pl.col("Kecamatan").is_in(filter_kecamatan),
-            pl.col("Kelurahan_Desa").is_in(filter_desa),
-            pl.col("Bulan").is_in([nilai_bulan_sebelum(filter_bulan)])
+        fig.update_yaxes(
+            range=[y_min, max_value],
+            tickformat=",.0f")  # `None` untuk batas atas otomatis 
+         
+        fig.update_layout(
+            showlegend=False,
+            paper_bgcolor="#f6f8fa",
+            plot_bgcolor="#f6f8fa",
+            margin=dict(l=50, r=50, t=80, b=50)  # Padding: kiri, kanan, atas, bawah
         )
-        unmet_need_bulan_lalu = round(data_pus_bulan_lalu["Unmet Need"].sum() / data_pus_bulan_lalu["PUS"].sum() *100, 2)
-        #unmet_need_bulan_lalu
-
-
-        if unmet_need_bulan_ini > unmet_need_bulan_lalu:
-            icon_title = "Unmet Need"
-            icons_fa = ui.HTML(
-                f'<svg aria-hidden="true" role="img" viewBox="0 0 384 512" style="height:1em;width:0.75em;vertical-align:-0.125em;margin-left:auto;margin-right:auto;font-size:inherit;fill:currentColor;overflow:visible;position:relative;"><path d="M214.6 41.4c-12.5-12.5-32.8-12.5-45.3 0l-160 160c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L160 141.2V448c0 17.7 14.3 32 32 32s32-14.3 32-32V141.2L329.4 246.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-160-160z"/></svg>'
-                )
-            kondisi = "Naik"
-        elif unmet_need_bulan_ini < unmet_need_bulan_lalu:
-            icon_title = "Unmet Need"
-            icons_fa = ui.HTML(
-                f'<svg aria-hidden="true" role="img" viewBox="0 0 384 512" style="height:1em;width:0.75em;vertical-align:-0.125em;margin-left:auto;margin-right:auto;font-size:inherit;fill:currentColor;overflow:visible;position:relative;"><path d="M169.4 470.6c12.5 12.5 32.8 12.5 45.3 0l160-160c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L224 370.8 224 64c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 306.7L54.6 265.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l160 160z"/></svg>'
-                )
-            kondisi = "Turun"
-        else:
-            icon_title = "Unmet Need"
-            icons_fa = ui.HTML(
-                f'<svg aria-hidden="true" role="img" viewBox="0 0 512 512" style="height:1em;width:1em;vertical-align:-0.125em;margin-left:auto;margin-right:auto;font-size:inherit;fill:currentColor;overflow:visible;position:relative;"><path d="M105.1 202.6c7.7-21.8 20.2-42.3 37.8-59.8c62.5-62.5 163.8-62.5 226.3 0L386.3 160H336c-17.7 0-32 14.3-32 32s14.3 32 32 32H463.5c0 0 0 0 0 0h.4c17.7 0 32-14.3 32-32V64c0-17.7-14.3-32-32-32s-32 14.3-32 32v51.2L414.4 97.6c-87.5-87.5-229.3-87.5-316.8 0C73.2 122 55.6 150.7 44.8 181.4c-5.9 16.7 2.9 34.9 19.5 40.8s34.9-2.9 40.8-19.5zM39 289.3c-5 1.5-9.8 4.2-13.7 8.2c-4 4-6.7 8.8-8.1 14c-.3 1.2-.6 2.5-.8 3.8c-.3 1.7-.4 3.4-.4 5.1V448c0 17.7 14.3 32 32 32s32-14.3 32-32V396.9l17.6 17.5 0 0c87.5 87.4 229.3 87.4 316.7 0c24.4-24.4 42.1-53.1 52.9-83.7c5.9-16.7-2.9-34.9-19.5-40.8s-34.9 2.9-40.8 19.5c-7.7 21.8-20.2 42.3-37.8 59.8c-62.5 62.5-163.8 62.5-226.3 0l-.1-.1L125.6 352H176c17.7 0 32-14.3 32-32s-14.3-32-32-32H48.4c-1.6 0-3.2 .1-4.8 .3s-3.1 .5-4.6 1z"/></svg>'
-            )
-            kondisi = "Sama"
-
-        icon_vb = ui.HTML(
-                '<svg xmlns="http://www.w3.org/2000/svg" color="white" viewBox="0 0 384 512"><!--!Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.--><path d="M192 0a48 48 0 1 1 0 96 48 48 0 1 1 0-96zM120 383c-13.8-3.6-24-16.1-24-31V296.9l-4.6 7.6c-9.1 15.1-28.8 20-43.9 10.9s-20-28.8-10.9-43.9l58.3-97c15-24.9 40.3-41.5 68.7-45.6c4.1-.6 8.2-1 12.5-1h1.1 12.5H192c1.4 0 2.8 .1 4.1 .3c35.7 2.9 65.4 29.3 72.1 65l6.1 32.5c44.3 8.6 77.7 47.5 77.7 94.3v32c0 17.7-14.3 32-32 32H304 264v96c0 17.7-14.3 32-32 32s-32-14.3-32-32V384h-8-8v96c0 17.7-14.3 32-32 32s-32-14.3-32-32V383z"/></svg>'
-            )
-        
-        #icon_title_tes = "About tooltips"
-        # icons_fa = ui.HTML(
-        #     f'<svg aria-hidden="true" color="blue" role="img" viewBox="0 0 512 512" style="height:1em;width:1em;vertical-align:-0.125em;margin-left:auto;margin-right:auto;font-size:inherit;fill:currentColor;overflow:visible;position:relative;"><title>{icon_title}</title><path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM216 336h24V272H216c-13.3 0-24-10.7-24-24s10.7-24 24-24h48c13.3 0 24 10.7 24 24v88h8c13.3 0 24 10.7 24 24s-10.7 24-24 24H216c-13.3 0-24-10.7-24-24s10.7-24 24-24zm40-208a32 32 0 1 1 0 64 32 32 0 1 1 0-64z"/></svg>'
-        # )
-        def fa_info_circle(icon_title: str, icons_fa):
-            # Enhanced from https://rstudio.github.io/fontawesome/ via `fontawesome::fa(&quot;info-circle&quot;, a11y = &quot;sem&quot;, title = icon_title)`
-            return ui.span(icon_title, " ", icons_fa)
-
-        judul_vb = fa_info_circle(icon_title, icons_fa)
-
-        if kondisi == "Naik":
-            penjelasan_unmet_need = "Naik dari capaian " + nilai_bulan_sebelum(filter_bulan) + " (" + str(unmet_need_bulan_lalu)  + ")"
-        elif kondisi == "Turun":
-             penjelasan_unmet_need ="Turun dari capaian " + nilai_bulan_sebelum(filter_bulan) + " (" + str(unmet_need_bulan_lalu)  + ")"
-        else:
-            penjelasan_unmet_need = "Sama dengan capaian " + nilai_bulan_sebelum(filter_bulan) + " (" + str(unmet_need_bulan_lalu)  + ")"
-
-        vb = ui.value_box(  
-            ui.span(judul_vb, style="font-size:20px; font-weight: bold;"),
-            unmet_need_bulan_ini,
-            penjelasan_unmet_need,
-            showcase= faicons.icon_svg("person-pregnant"),
-            theme=ui.ValueBoxTheme(class_="", bg = "#f6f8fa", fg = "#0B538E"),
-            full_screen=True,
+        fig.update_traces(
+            hovertemplate="Bulan = %{x}<br>Jumlah PA = %{y}"
         )
-        return(vb)
-
-    @render.ui
-    @reactive.event(input.action_button)
-    def vb_tenakes():
-        filter_kabupaten = val_kab.get()
-        filter_kecamatan = val_kec.get()
-        filter_desa = val_desa.get()
-        filter_bulan = input.pilih_bulan()
-
-        data_tenakes = pl.read_excel("data/data_faskes_siga.xlsx")
-        data_tenakes = data_tenakes.filter(
-            pl.col("Kabupaten").is_in(filter_kabupaten),
-            pl.col("Kecamatan").is_in(filter_kecamatan),
-            pl.col("Kelurahan/Desa").is_in(filter_desa),
-            pl.col("BULAN").is_in([filter_bulan])
-        )
-        jumlah_tenakes = data_tenakes.height
-
-        if jumlah_tenakes <= 0:
-            jumlah_tenakes = 0
-        else:
-            jumlah_tenakes = jumlah_tenakes
-
-        vb = ui.value_box(  
-            ui.span("Tenaga Kesehatan KB", style="font-size:20px; font-weight: bold;"),
-            jumlah_tenakes,
-            showcase= faicons.icon_svg("user-nurse"),
-            theme=ui.ValueBoxTheme(class_="", bg = "#f6f8fa", fg = "#0B538E"),
-            full_screen=True,
-        )
-        return(vb)
-    
-    @render.ui
-    @reactive.event(input.action_button)
-    def vb_tp_kb():
-        filter_kabupaten = val_kab.get()
-        filter_kecamatan = val_kec.get()
-        filter_desa = val_desa.get()
-        filter_bulan = input.pilih_bulan()
-
-        data_tp_kb = pl.read_excel("data/data_faskes_siga.xlsx")
-        data_tp_kb = data_tp_kb.filter(
-            pl.col("Kabupaten").is_in(filter_kabupaten),
-            pl.col("Kecamatan").is_in(filter_kecamatan),
-            pl.col("Kelurahan/Desa").is_in(filter_desa),
-            pl.col("BULAN").is_in([filter_bulan])
-        )
-        jumlah_tp_kb = len(data_tp_kb["No. Registrasi"].unique())
-
-        if jumlah_tp_kb <= 0:
-            jumlah_tp_kb = 0
-        else:
-            jumlah_tp_kb = jumlah_tp_kb
-
-        vb = ui.value_box(  
-            ui.span("Tempat Pelayanan KB", style="font-size:20px; font-weight: bold;"),
-            jumlah_tp_kb,
-            showcase= faicons.icon_svg("house-medical"),
-            theme=ui.ValueBoxTheme(class_="", bg = "#f6f8fa", fg = "#0B538E"),
-            full_screen=True,
-        )
-        return(vb)
-
-    @render.ui
-    @reactive.event(input.action_button)
-    def vb_mkjp():
-        filter_kabupaten = val_kab.get()
-        filter_kecamatan = val_kec.get()
-        filter_desa = val_desa.get()
-        filter_bulan = input.pilih_bulan()
-        data_mkjp = pl.read_excel("data/data_mix_kontra.xlsx")
-
-        data_mkjp = data_mkjp.filter(
-            pl.col("Kabupaten").is_in(filter_kabupaten),
-            pl.col("Kecamatan").is_in(filter_kecamatan),
-            pl.col("Kelurahan/Desa").is_in(filter_desa),
-            pl.col("Bulan").is_in([filter_bulan])
-        )
-        mkjp_bulan_ini = data_mkjp["Implan"].sum() + data_mkjp["IUD"].sum() + data_mkjp["Vasektomi"].sum() + data_mkjp["Tubektomi"].sum()	
-        #unmet_need_bulan_ini
-
-        data_mkjp_bulan_lalu = pl.read_excel("data/data_mix_kontra.xlsx")
-
-        data_mkjp_bulan_lalu = data_mkjp_bulan_lalu.filter(
-            pl.col("Kabupaten").is_in(filter_kabupaten),
-            pl.col("Kecamatan").is_in(filter_kecamatan),
-            pl.col("Kelurahan/Desa").is_in(filter_desa),
-            pl.col("Bulan").is_in([nilai_bulan_sebelum(filter_bulan)])
-        )
-        mkjp_bulan_lalu = data_mkjp_bulan_lalu["Implan"].sum() + data_mkjp_bulan_lalu["IUD"].sum() + data_mkjp_bulan_lalu["Vasektomi"].sum() + data_mkjp_bulan_lalu["Tubektomi"].sum()
-        mkjp_bulan_lalu
-
-
-        if mkjp_bulan_ini > mkjp_bulan_lalu:
-            icon_title = "MKJP"
-            icons_fa = ui.HTML(
-                f'<svg aria-hidden="true" role="img" viewBox="0 0 384 512" style="height:1em;width:0.75em;vertical-align:-0.125em;margin-left:auto;margin-right:auto;font-size:inherit;fill:currentColor;overflow:visible;position:relative;"><path d="M214.6 41.4c-12.5-12.5-32.8-12.5-45.3 0l-160 160c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L160 141.2V448c0 17.7 14.3 32 32 32s32-14.3 32-32V141.2L329.4 246.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-160-160z"/></svg>'
-                )
-            kondisi = "Naik"
-        elif mkjp_bulan_ini < mkjp_bulan_lalu:
-            icon_title = "MKJP"
-            icons_fa = ui.HTML(
-                f'<svg aria-hidden="true" role="img" viewBox="0 0 384 512" style="height:1em;width:0.75em;vertical-align:-0.125em;margin-left:auto;margin-right:auto;font-size:inherit;fill:currentColor;overflow:visible;position:relative;"><path d="M169.4 470.6c12.5 12.5 32.8 12.5 45.3 0l160-160c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L224 370.8 224 64c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 306.7L54.6 265.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l160 160z"/></svg>'
-                )
-            kondisi = "Turun"
-        else:
-            icon_title = "MKJP"
-            icons_fa = ui.HTML(
-                f'<svg aria-hidden="true" role="img" viewBox="0 0 512 512" style="height:1em;width:1em;vertical-align:-0.125em;margin-left:auto;margin-right:auto;font-size:inherit;fill:currentColor;overflow:visible;position:relative;"><path d="M105.1 202.6c7.7-21.8 20.2-42.3 37.8-59.8c62.5-62.5 163.8-62.5 226.3 0L386.3 160H336c-17.7 0-32 14.3-32 32s14.3 32 32 32H463.5c0 0 0 0 0 0h.4c17.7 0 32-14.3 32-32V64c0-17.7-14.3-32-32-32s-32 14.3-32 32v51.2L414.4 97.6c-87.5-87.5-229.3-87.5-316.8 0C73.2 122 55.6 150.7 44.8 181.4c-5.9 16.7 2.9 34.9 19.5 40.8s34.9-2.9 40.8-19.5zM39 289.3c-5 1.5-9.8 4.2-13.7 8.2c-4 4-6.7 8.8-8.1 14c-.3 1.2-.6 2.5-.8 3.8c-.3 1.7-.4 3.4-.4 5.1V448c0 17.7 14.3 32 32 32s32-14.3 32-32V396.9l17.6 17.5 0 0c87.5 87.4 229.3 87.4 316.7 0c24.4-24.4 42.1-53.1 52.9-83.7c5.9-16.7-2.9-34.9-19.5-40.8s-34.9 2.9-40.8 19.5c-7.7 21.8-20.2 42.3-37.8 59.8c-62.5 62.5-163.8 62.5-226.3 0l-.1-.1L125.6 352H176c17.7 0 32-14.3 32-32s-14.3-32-32-32H48.4c-1.6 0-3.2 .1-4.8 .3s-3.1 .5-4.6 1z"/></svg>'
-            )
-            kondisi = "Sama"
-
-        icon_vb = ui.HTML(
-                '<svg xmlns="http://www.w3.org/2000/svg" color="white" viewBox="0 0 384 512"><!--!Font Awesome Free 6.5.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2024 Fonticons, Inc.--><path d="M192 0a48 48 0 1 1 0 96 48 48 0 1 1 0-96zM120 383c-13.8-3.6-24-16.1-24-31V296.9l-4.6 7.6c-9.1 15.1-28.8 20-43.9 10.9s-20-28.8-10.9-43.9l58.3-97c15-24.9 40.3-41.5 68.7-45.6c4.1-.6 8.2-1 12.5-1h1.1 12.5H192c1.4 0 2.8 .1 4.1 .3c35.7 2.9 65.4 29.3 72.1 65l6.1 32.5c44.3 8.6 77.7 47.5 77.7 94.3v32c0 17.7-14.3 32-32 32H304 264v96c0 17.7-14.3 32-32 32s-32-14.3-32-32V384h-8-8v96c0 17.7-14.3 32-32 32s-32-14.3-32-32V383z"/></svg>'
-            )
-
-        #icon_title_tes = "About tooltips"
-        # icons_fa = ui.HTML(
-        #     f'<svg aria-hidden="true" color="blue" role="img" viewBox="0 0 512 512" style="height:1em;width:1em;vertical-align:-0.125em;margin-left:auto;margin-right:auto;font-size:inherit;fill:currentColor;overflow:visible;position:relative;"><title>{icon_title}</title><path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM216 336h24V272H216c-13.3 0-24-10.7-24-24s10.7-24 24-24h48c13.3 0 24 10.7 24 24v88h8c13.3 0 24 10.7 24 24s-10.7 24-24 24H216c-13.3 0-24-10.7-24-24s10.7-24 24-24zm40-208a32 32 0 1 1 0 64 32 32 0 1 1 0-64z"/></svg>'
-        # )
-        def fa_info_circle(icon_title: str, icons_fa):
-            # Enhanced from https://rstudio.github.io/fontawesome/ via `fontawesome::fa(&quot;info-circle&quot;, a11y = &quot;sem&quot;, title = icon_title)`
-            return ui.span(icon_title, " ", icons_fa)
-
-        judul_vb = fa_info_circle(icon_title, icons_fa)
-
-        if kondisi == "Naik":
-            penjelasan_mkjp = "Naik dari capaian " + nilai_bulan_sebelum(filter_bulan) + " (" + str(mkjp_bulan_lalu)  + ")"
-        elif kondisi == "Turun":
-                penjelasan_mkjp ="Turun dari capaian " + nilai_bulan_sebelum(filter_bulan) + " (" + str(mkjp_bulan_lalu)  + ")"
-        else:
-            penjelasan_mkjp = "Sama dengan capaian " + nilai_bulan_sebelum(filter_bulan) + " (" + str(mkjp_bulan_lalu)  + ")"
-
-        vb = ui.value_box(  
-            ui.span(judul_vb, style="font-size:20px; font-weight: bold;"),
-            mkjp_bulan_ini,
-            penjelasan_mkjp,
-            showcase= faicons.icon_svg("syringe"),
-            theme=ui.ValueBoxTheme(class_="", bg = "#f6f8fa", fg = "#0B538E"),
-            full_screen=True,
-        )
-        return vb
+        return fig  
 
     @render_widget
     @reactive.event(input.action_button)
-    def bar_mix_kontrasepsi():
+    def tren_unmet_need():
         filter_kabupaten = val_kab.get()
         filter_kecamatan = val_kec.get()
         filter_desa = val_desa.get()
-        filter_bulan =  bulan_hingga(input.pilih_bulan())
-        data_mkjp = pl.read_excel("data/data_mix_kontra.xlsx")
+        filter_bulan = input.pilih_bulan()
 
-        data_mkjp = data_mkjp.filter(
-            pl.col("Kabupaten").is_in(filter_kabupaten),
-            pl.col("Kecamatan").is_in(filter_kecamatan),
-            pl.col("Kelurahan/Desa").is_in(filter_desa),
-            pl.col("Bulan").is_in(filter_bulan)
+        aggregated = data_pus.filter(
+            pl.col("KABUPATEN").is_in(filter_kabupaten),
+            pl.col("KECAMATAN").is_in(filter_kecamatan),
+            pl.col("KELURAHAN").is_in(filter_desa),
+            pl.col("BULAN").is_in(bulan_hingga(filter_bulan))
+        ).group_by('PROVINSI', 'BULAN').agg([
+            pl.col("PUS").sum(),
+            pl.col("UNMET NEED").sum()
+        ]).with_columns(
+            ((pl.col("UNMET NEED") / pl.col("PUS"))* 100).alias('UNMET NEED')
         )
 
-        data_mkjp = data_mkjp.select(
-            pl.col("Suntik").sum(),
-            pl.col("Pil").sum(),
-            pl.col("Kondom").sum(),
-            pl.col("Implan").sum(),
+        aggregated = aggregated.with_columns(
+            pl.col("BULAN").replace(month_order).alias("month_num")
+        ).sort("month_num").drop("month_num")
+
+        # Hitung nilai minimum untuk sumbu Y (Januari - 10%)
+        nilai_januari = aggregated.filter(pl.col("BULAN") == "JANUARI")["UNMET NEED"][0]
+        y_min = nilai_januari - (nilai_januari * 0.1)  # Januari - 10%
+        max_value = aggregated["UNMET NEED"].max() * 1.1
+
+        fig = px.line(
+            aggregated,  # Langsung gunakan Polars DataFrame
+            x="BULAN",
+            y="UNMET NEED",
+            title="Tren Persentase Unmet Need",
+            labels={"BULAN": "Bulan", "UNMET NEED": "Persentase Unmet Need"},
+            markers=True  # Menambahkan dot (marker) di setiap titik
+        )
+
+        fig.update_yaxes(
+            range=[y_min, max_value],
+            tickformat=",.0f",  # Format tanpa desimal
+            dtick=1  # Atur interval antar tick menjadi 1 (atau sesuaikan dengan kebutuhan)
+        )
+
+        fig.update_layout(
+            showlegend=False,
+            paper_bgcolor="#f6f8fa",
+            plot_bgcolor="#f6f8fa",
+            margin=dict(l=50, r=50, t=80, b=50)  # Padding: kiri, kanan, atas, bawah
+        )
+# Perbarui hover template agar menampilkan dua angka di belakang koma
+        fig.update_traces(
+            hovertemplate="Bulan = %{x}<br>Persentase Unmet Need = %{y:.2f}%"  # Format hover menjadi dua desimal
+        )
+        return fig
+
+    @render_widget
+    @reactive.event(input.action_button)
+    def tren_mkjp():
+        filter_kabupaten = val_kab.get()
+        filter_kecamatan = val_kec.get()
+        filter_desa = val_desa.get()
+        filter_bulan = input.pilih_bulan()
+        aggregated = data_mix.filter(
+            pl.col("KABUPATEN").is_in(filter_kabupaten),
+            pl.col("KECAMATAN").is_in(filter_kecamatan),
+            pl.col("KELURAHAN").is_in(filter_desa),
+            pl.col("BULAN").is_in(bulan_hingga(filter_bulan))
+        ).group_by('PROVINSI', "BULAN").agg([
+            pl.col("IMPLAN").sum(),
             pl.col("IUD").sum(),
-            pl.col("Vasektomi").sum(),
-            pl.col("Tubektomi").sum(),
-            pl.col("MAL").sum()
+            pl.col("VASEKTOMI").sum(),
+            pl.col("TUBEKTOMI").sum(),
+            pl.col("KB MODERN").sum()
+        ]).with_columns(
+            (((pl.col("IUD") + pl.col("IMPLAN") + pl.col("VASEKTOMI") + pl.col("TUBEKTOMI")) / pl.col("KB MODERN"))* 100).round(2).alias('MKJP')
         )
 
-        data_mkjp = data_mkjp.unpivot(on = ["Suntik", "Pil", "Kondom",
-                "Implan",	"IUD",	"Vasektomi",
-                "Tubektomi",	"MAL"], 
-                variable_name="Alokon", value_name="Total")
-        
-        df = data_mkjp.to_pandas()
+        aggregated = aggregated.with_columns(
+            pl.col("BULAN").replace(month_order).alias("month_num")
+        ).sort("month_num").drop("month_num")
 
-        # Mengurutkan data berdasarkan nilai terkecil ke terbesar
-        df = df.sort_values(by="Total")
+        # Hitung nilai minimum untuk sumbu Y (Januari - 10%)
+        nilai_januari = aggregated.filter(pl.col("BULAN") == "JANUARI")["MKJP"][0]
+        y_min = nilai_januari - (nilai_januari * 0.05)  # Januari - 10%
+        max_value = aggregated["MKJP"].max() * 1.05
 
-        # # Membuat bar chart dengan label
-        # fig = px.bar(df, x="Variable", y="Value", title="Bar Chart", labels={"Variable": "Metode Kontrasepsi", "Value": "Jumlah"}, text="Value")
-
-        grafik_kontrasepsi = px.bar(
-            df,
-            x="Total",
-            y="Alokon",
-            text="Total",
-            title="Penggunaan Metode Kontrasepsi",
-            orientation='h'
+        fig = px.line(
+            aggregated,  # Langsung gunakan Polars DataFrame
+            x="BULAN",
+            y="MKJP",
+            title="Tren Persentase MKJP",
+            labels={"BULAN": "Bulan", "MKJP": "Persentase MKJP"},
+            markers=True  # Menambahkan dot (marker) di setiap titik
         )
+        fig.update_yaxes(
+            range=[y_min, max_value],
+            tickformat=",.0f")  # `None` untuk batas atas otomatis 
 
-        # Menambahkan pengaturan layout
-        grafik_kontrasepsi.update_traces(marker_color='#0d6efd')
-        grafik_kontrasepsi.update_layout(
-            xaxis_title="Metode Kontrasepsi",
-            yaxis_title="Jumlah Penggunaan",
-            xaxis=dict(categoryorder="total ascending"),
-            font=dict(family="Arial"),
-            margin=dict(l=50, r=50, b=50, t=50),
+        fig.update_layout(
+            showlegend=False,
             paper_bgcolor="#f6f8fa",
             plot_bgcolor="#f6f8fa",
-            hoverlabel=dict(
-                bgcolor="white",
-                font=dict(family="Arial")
-            ),
-            legend=dict(font=dict(family="Arial")),
-            hovermode="closest",
-            hoverdistance=30,
-            updatemenus=[dict(font=dict(family="Arial"))]
+            margin=dict(l=50, r=50, t=80, b=50)  # Padding: kiri, kanan, atas, bawah
         )
-
-        return grafik_kontrasepsi
-
-    @render_widget
-    @reactive.event(input.action_button)
-    def donut_status_pelatihan():
-        filter_kabupaten = val_kab.get()
-        filter_kecamatan = val_kec.get()
-        filter_desa = val_desa.get()
-        filter_bulan = input.pilih_bulan()
-
-        data_bidan = pl.read_excel("data/data_faskes_siga.xlsx")
-
-        data_bidan = data_bidan.filter(
-            pl.col("Kabupaten").is_in(filter_kabupaten),
-            pl.col("Kecamatan").is_in(filter_kecamatan),
-            pl.col("Kelurahan/Desa").is_in(filter_desa),
-            pl.col("BULAN").is_in([filter_bulan])
+# Perbarui hover template agar menampilkan dua angka di belakang koma
+        fig.update_traces(
+            hovertemplate="Bulan = %{x}<br>Persentase MKJP = %{y:.2f}%"  # Format hover menjadi dua desimal
         )
-
-        data_bidan = data_bidan['Pelatihan']
-
-        df = pl.DataFrame(data_bidan)
-
-        # Konversi Polars DataFrame ke Pandas DataFrame
-        df_pd = df.to_pandas()
-
-        # Menambahkan kolom "Status Pelatihan" berdasarkan kondisi pada kolom "Pelatihan"
-        df_pd["Status Pelatihan"] = df_pd["Pelatihan"].apply(
-            lambda x: "Terlatih" if ("IUD" in x or "IMPLAN" in x) else "Tidak Terlatih"
-        )
-
-        # Plot donut chart menggunakan Plotly Express
-        count = df_pd["Status Pelatihan"].value_counts()
-        donut_status_pelatihan = px.pie(df_pd, names=count.index, values=count.values,
-                    color=count.index, color_discrete_map={'Tidak Terlatih': '#ffc107', 'Terlatih': '#0d6efd'},
-                    hole=0.5, title='Persentase Status Pelatihan Tenaga Kesehatan KB')
-
-        donut_status_pelatihan.update_layout(
-            xaxis_title="Metode Kontrasepsi",
-            yaxis_title="Jumlah Penggunaan",
-            xaxis=dict(categoryorder="total ascending"),
-            font=dict(family="Arial"),
-            margin=dict(l=50, r=50, b=50, t=50),
-            paper_bgcolor="#f6f8fa",
-            plot_bgcolor="#f6f8fa",
-            hoverlabel=dict(
-                bgcolor="white",
-                font=dict(family="Arial")
-            ),
-            legend=dict(font=dict(family="Arial")),
-            hovermode="closest",
-            hoverdistance=30,
-            updatemenus=[dict(font=dict(family="Arial"))]
-        )
-        return donut_status_pelatihan
-
-    @render_widget
-    @reactive.event(input.action_button)
-    def line_pa():
-        filter_kabupaten = val_kab.get()
-        filter_kecamatan = val_kec.get()
-        filter_desa = val_desa.get()
-        filter_bulan =  bulan_hingga(input.pilih_bulan())
-        data_pa = pl.read_excel("data/data_mix_kontra.xlsx")
-        data_pa = data_pa.filter(
-            pl.col("Kabupaten").is_in(filter_kabupaten),
-            pl.col("Kecamatan").is_in(filter_kecamatan),
-            pl.col("Kelurahan/Desa").is_in(filter_desa),
-            pl.col("Bulan").is_in(filter_bulan)
-        )
-        data_pa = data_pa.select(["PA", "Bulan"])
-        data_pa = data_pa.group_by("Bulan").agg([
-            pl.sum("PA")
-        ])
-
-        # Konversi kembali ke Pandas DataFrame untuk plotly
-        data_pa = data_pa.to_pandas()
-
-        # Menentukan urutan bulan
-        bulan_order = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"]
-        data_pa['Bulan'] = pd.Categorical(data_pa['Bulan'], categories=bulan_order, ordered=True)
-
-        # Mengurutkan DataFrame berdasarkan urutan bulan
-        data_pa = data_pa.sort_values('Bulan')
-
-        line_pa = px.line(data_pa, x="Bulan", y="PA", title="Tren Peserta KB Aktif", markers=True)
-
-        line_pa.update_layout(
-            xaxis_title="Metode Kontrasepsi",
-            yaxis_title="Jumlah Penggunaan",
-            #xaxis=dict(categoryorder="total ascending"),
-            font=dict(family="Arial"),
-            margin=dict(l=50, r=50, b=50, t=50),
-            paper_bgcolor="#f6f8fa",
-            plot_bgcolor="#f6f8fa",
-            hoverlabel=dict(
-                bgcolor="white",
-                font=dict(family="Arial")
-            ),
-            legend=dict(font=dict(family="Arial")),
-            hovermode="closest",
-            hoverdistance=30,
-            updatemenus=[dict(font=dict(family="Arial"))]
-        )
-        return line_pa
-
-    @render_widget
-    @reactive.event(input.action_button)
-    def line_vb_pus():
-        filter_kabupaten = val_kab.get()
-        filter_kecamatan = val_kec.get()
-        filter_desa = val_desa.get()
-        filter_bulan = input.pilih_bulan()
-        
-        data_pus = pl.read_excel("data/data_pus.xlsx")
-
-        hingga_bulan = bulan_hingga(filter_bulan)
-
-        data_pus = data_pus.filter(
-            pl.col("Kabupaten").is_in(filter_kabupaten),
-            pl.col("Kecamatan").is_in(filter_kecamatan),
-            pl.col("Kelurahan_Desa").is_in(filter_desa),
-            pl.col("Bulan").is_in(hingga_bulan)
-        )
-        data_pus = data_pus.select(["PUS", "Bulan"])
-        data_pus = data_pus.group_by("Bulan").agg([
-            pl.sum("PUS")
-        ])
-
-        data_pus = data_pus.to_pandas()
-
-        # Menentukan urutan bulan
-        bulan_order = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"]
-        data_pus['Bulan'] = pd.Categorical(data_pus['Bulan'], categories=bulan_order, ordered=True)
-
-        # Mengurutkan DataFrame berdasarkan urutan bulan
-        data_pus = data_pus.sort_values('Bulan')
-
-
-        line_pus = px.line(data_pus, x="Bulan", y="PUS",  markers=True)
-        # line_pus.update_traces(
-        #     line_color="#406EF1",
-        #     line_width=1,
-        #     fill="tozeroy",
-        #     fillcolor="rgba(64,110,241,0.2)",
-        #     hoverinfo="y",
-        # )
-        line_pus.update_xaxes(visible=False, showgrid=False)
-        line_pus.update_yaxes(visible=False, showgrid=False)
-        line_pus.update_layout(
-            paper_bgcolor="#f6f8fa",
-            plot_bgcolor="#f6f8fa"
-        )
-        return line_pus
-        
-    @render.text  
-    @reactive.event(input.action_button)
-    def text_jumlah_pus():  
-        filter_kabupaten = val_kab.get()
-        filter_kecamatan = val_kec.get()
-        filter_desa = val_desa.get()
-        filter_bulan = input.pilih_bulan()
-        
-        data_pus = pl.read_excel("data/data_pus.xlsx")
-
-        data_pus = data_pus.filter(
-            pl.col("Kabupaten").is_in(filter_kabupaten),
-            pl.col("Kecamatan").is_in(filter_kecamatan),
-            pl.col("Kelurahan_Desa").is_in(filter_desa),
-            pl.col("Bulan").is_in([filter_bulan])
-        )
-        data_pus = data_pus['PUS'].sum()
-        data_pus = format_number(data_pus)
-        return data_pus
-    
-    @render_widget
-    @reactive.event(input.action_button)
-    def line_vb_mcpr():
-        filter_kabupaten = val_kab.get()
-        filter_kecamatan = val_kec.get()
-        filter_desa = val_desa.get()
-        filter_bulan = input.pilih_bulan()
-
-        hingga_bulan = bulan_hingga(filter_bulan)
-
-        #MCPR
-        data_pus = pl.read_excel("data/data_pus.xlsx")
-
-        data_pus = data_pus.filter(
-            pl.col("Kabupaten").is_in(filter_kabupaten),
-            pl.col("Kecamatan").is_in(filter_kecamatan),
-            pl.col("Kelurahan_Desa").is_in(filter_desa),
-            pl.col("Bulan").is_in(hingga_bulan)
-        )
-        data_pus = data_pus.select(["PUS", "Bulan"])
-        data_pus = data_pus.group_by("Bulan").agg([
-            pl.sum("PUS")
-        ])
-
-        #MCPR
-        data_mcpr = pl.read_excel("data/data_mix_kontra.xlsx")
-
-        hingga_bulan = bulan_hingga("JUNI")
-
-        data_mcpr = data_mcpr.filter(
-            pl.col("Kabupaten").is_in(filter_kabupaten),
-            pl.col("Kecamatan").is_in(filter_kecamatan),
-            pl.col("Kelurahan/Desa").is_in(filter_desa),
-            pl.col("Bulan").is_in(hingga_bulan)
-        )
-        data_mcpr = data_mcpr.select(["KB Modern", "Bulan"])
-        data_mcpr = data_mcpr.group_by("Bulan").agg([
-            pl.sum("KB Modern")
-        ])
-
-        data_mcpr = data_mcpr.join(data_pus, on="Bulan", how="inner")
-
-        data_mcpr = data_mcpr.with_columns(
-            (pl.col("KB Modern") / pl.col("PUS") * 100).round(2).alias("MCPR")
-        )
-
-        data_mcpr = data_mcpr.to_pandas()
-
-        # Menentukan urutan bulan
-        bulan_order = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"]
-        data_mcpr['Bulan'] = pd.Categorical(data_mcpr['Bulan'], categories=bulan_order, ordered=True)
-
-        # Mengurutkan DataFrame berdasarkan urutan bulan
-        data_mcpr = data_mcpr.sort_values('Bulan')
-
-
-        line_mcpr = px.line(data_mcpr, x="Bulan", y="MCPR",  markers=True)
-        # line_pus.update_traces(
-        #     line_color="#406EF1",
-        #     line_width=1,
-        #     fill="tozeroy",
-        #     fillcolor="rgba(64,110,241,0.2)",
-        #     hoverinfo="y",
-        # )
-        line_mcpr.update_xaxes(visible=False, showgrid=False)
-        line_mcpr.update_yaxes(visible=False, showgrid=False)
-        line_mcpr.update_layout(
-            paper_bgcolor="#f6f8fa",
-            plot_bgcolor="#f6f8fa"
-        )
-        return line_mcpr
-        
-    @render.text  
-    @reactive.event(input.action_button)
-    def text_jumlah_mcpr():  
-        filter_kabupaten = val_kab.get()
-        filter_kecamatan = val_kec.get()
-        filter_desa = val_desa.get()
-        filter_bulan = input.pilih_bulan()
-
-        #MCPR
-        data_pus = pl.read_excel("data/data_pus.xlsx")
-
-        data_pus = data_pus.filter(
-            pl.col("Kabupaten").is_in(filter_kabupaten),
-            pl.col("Kecamatan").is_in(filter_kecamatan),
-            pl.col("Kelurahan_Desa").is_in(filter_desa),
-            pl.col("Bulan").is_in([filter_bulan])
-        )
-        data_pus = data_pus.select(["PUS", "Bulan"])
-        data_pus = data_pus.group_by("Bulan").agg([
-            pl.sum("PUS")
-        ])
-
-        #MCPR
-        data_mcpr = pl.read_excel("data/data_mix_kontra.xlsx")
-
-        data_mcpr = data_mcpr.filter(
-            pl.col("Kabupaten").is_in(filter_kabupaten),
-            pl.col("Kecamatan").is_in(filter_kecamatan),
-            pl.col("Kelurahan/Desa").is_in(filter_desa),
-            pl.col("Bulan").is_in([filter_bulan])
-        )
-        data_mcpr = data_mcpr.select(["KB Modern", "Bulan"])
-        data_mcpr = data_mcpr.group_by("Bulan").agg([
-            pl.sum("KB Modern")
-        ])
-
-        data_mcpr = data_mcpr.join(data_pus, on="Bulan", how="inner")
-
-        data_mcpr = data_mcpr.with_columns(
-            (pl.col("KB Modern") / pl.col("PUS") * 100).round(2).alias("MCPR")
-        )
-
-        data_mcpr = data_mcpr["MCPR"].sum()
-
-        data_mcpr = format_number(data_mcpr)
-        return data_mcpr + "%"
-    
-    @reactive.calc
-    @reactive.event(input.action_button)  
-    def data_bidan():
-        filter_kabupaten = val_kab.get()
-        filter_kecamatan = val_kec.get()
-        filter_desa = val_desa.get()
-        filter_bulan = input.pilih_bulan()
-
-        data_bidan = pl.read_excel("data/data_faskes_siga.xlsx")
-
-        data_bidan = data_bidan.filter(
-            pl.col("Kabupaten").is_in(filter_kabupaten),
-            pl.col("Kecamatan").is_in(filter_kecamatan),
-            pl.col("Kelurahan/Desa").is_in(filter_desa),
-            pl.col("BULAN").is_in([filter_bulan])
-        )			 		
-
-        data_bidan = data_bidan.select(
-            pl.col("Provinsi"), pl.col("Kabupaten"),
-            pl.col("Kecamatan"), pl.col("Kelurahan/Desa"), pl.col("Nama Faskes"),
-            pl.col("Nama Bidan"), pl.col("Pelatihan")
-        )
-
-        df = pl.DataFrame(data_bidan)
-
-        # Konversi Polars DataFrame ke Pandas DataFrame
-        df_pd = df.to_pandas()
-
-        # Menambahkan kolom "Status Pelatihan" berdasarkan kondisi pada kolom "Pelatihan"
-        df_pd["Pelatihan"] = df_pd["Pelatihan"].apply(
-            lambda x: "Terlatih" if ("IUD" in x or "IMPLAN" in x) else "Belum Terlatih"
-        )
-
-        df_pd = pl.DataFrame(df_pd)
-        return df_pd
-
-    @render.ui
-    @reactive.event(input.action_button)  
-    def tabel_bidan():
-        df = data_bidan()
-        df = pl.DataFrame(df)
-        df = df.with_columns(pl.arange(1, df.height + 1).alias("No")).select(["No", *df.columns])
-        return ui.HTML(DT(df, scrollY="400px", scrollCollapse=True, paging=False,
-                          search={"regex": True, "caseInsensitive": True},
-                          buttons=["copyHtml5", "csvHtml5", "excelHtml5"]))
-
-    @reactive.calc
-    @reactive.event(input.action_button)  
-    def rekap_data_bidan():
-        filter_kabupaten = val_kab.get()
-        filter_kecamatan = val_kec.get()
-        filter_desa = val_desa.get()
-        filter_bulan = input.pilih_bulan()
-
-        data_bidan = pl.read_excel("data/data_faskes_siga.xlsx")
-
-        data_bidan = data_bidan.filter(
-            pl.col("Kabupaten").is_in(filter_kabupaten),
-            pl.col("Kecamatan").is_in(filter_kecamatan),
-            pl.col("Kelurahan/Desa").is_in(filter_desa),
-            pl.col("BULAN").is_in([filter_bulan])
-        )			 		
-
-        data_bidan = data_bidan.select(
-            pl.col("Provinsi"), pl.col("Kabupaten"),
-            pl.col("Kecamatan"), pl.col("Kelurahan/Desa"), pl.col("Nama Faskes"),
-            pl.col("Nama Bidan"), pl.col("Pelatihan")
-        )
-
-        df = pl.DataFrame(data_bidan)
-
-        # Konversi Polars DataFrame ke Pandas DataFrame
-        df_pd = df.to_pandas()
-
-        # Menambahkan kolom "Status Pelatihan" berdasarkan kondisi pada kolom "Pelatihan"
-        df_pd["Pelatihan"] = df_pd["Pelatihan"].apply(
-            lambda x: "Terlatih" if ("IUD" in x or "IMPLAN" in x) else "Belum Terlatih"
-        )
-
-        df_pd = pl.DataFrame(df_pd)
-        
-        if input.pilih_kab() == "SEMUA KABUPATEN":
-            # Mengelompokkan data dan menghitung jumlahnya
-            summary = df_pd.group_by(['Kabupaten', 'Pelatihan']).agg(
-                pl.col('Nama Bidan').count().alias('count')
-            )
-
-            # Mengubah format agar serupa dengan unstack di pandas
-            summary_pivot = summary.pivot(
-                values='count',
-                index=['Kabupaten'],
-                on='Pelatihan'
-            ).fill_null(0)
-
-        elif input.pilih_kab() != "SEMUA KABUPATEN" and input.pilih_kec() == "SEMUA KECAMATAN":
-            # Mengelompokkan data dan menghitung jumlahnya
-            summary = df_pd.group_by(['Kabupaten', 'Kecamatan', 'Pelatihan']).agg(
-                pl.col('Nama Bidan').count().alias('count')
-            )
-
-            summary_pivot = summary.pivot(
-                values='count',
-                index=['Kabupaten', 'Kecamatan'],
-                on='Pelatihan'
-            ).fill_null(0)
-            summary_pivot = summary_pivot.sort(['Kabupaten', 'Kecamatan'])
-            
-        elif input.pilih_kab() != "SEMUA KABUPATEN" and input.pilih_kec() != "SEMUA KECAMATAN" and input.pilih_desa() == "SEMUA DESA/KELURAHAN":
-            # Mengelompokkan data dan menghitung jumlahnya
-            summary = df_pd.group_by(['Kabupaten', 'Kecamatan', 'Kelurahan/Desa', 'Pelatihan']).agg(
-                pl.col('Nama Bidan').count().alias('count')
-            )
-
-            summary_pivot = summary.pivot(
-                values='count',
-                index=['Kabupaten', 'Kecamatan', 'Kelurahan/Desa'],
-                on='Pelatihan'
-            ).fill_null(0)
-            summary_pivot = summary_pivot.sort(['Kabupaten', 'Kecamatan', 'Kelurahan/Desa'])
-
-        else:
-            summary = df_pd.group_by(['Kabupaten', 'Kecamatan', 'Kelurahan/Desa', 'Nama Faskes', 'Pelatihan']).agg(
-                pl.col('Nama Bidan').count().alias('count')
-            )
-
-            # Mengubah format agar serupa dengan unstack di pandas
-            summary_pivot = summary.pivot(
-                values='count',
-                index=['Kabupaten', 'Kecamatan', 'Kelurahan/Desa', 'Nama Faskes'],
-                on='Pelatihan'
-            ).fill_null(0)
-
-            # Menambah kolom 'Terlatih' jika belum ada
-            if 'Terlatih' not in summary_pivot.columns:
-                summary_pivot = summary_pivot.with_columns(pl.lit(0).alias('Terlatih'))
-            elif 'Belum Terlatih' not in summary_pivot.columns:
-                summary_pivot = summary_pivot.with_columns(pl.lit(0).alias('Belum Terlatih'))
-
-            # Atur urutan kolom agar 'Terlatih' berada di urutan yang diinginkan
-            columns_order = ['Kabupaten', 'Kecamatan', 'Kelurahan/Desa', 'Nama Faskes', 'Belum Terlatih', 'Terlatih']
-            summary_pivot = summary_pivot.select(columns_order)
-        # Menghitung total untuk kolom "Belum Terlatih" dan "Terlatih"
-        summary_pivot = summary_pivot.to_pandas()
-        # Menghitung total untuk kolom "Belum Terlatih" dan "Terlatih"
-        total_belum_terlatih = summary_pivot['Belum Terlatih'].sum()
-        total_terlatih = summary_pivot['Terlatih'].sum()
-
-        # Menambahkan baris total ke DataFrame
-        total_row = pd.DataFrame({
-            'Kabupaten': ['TOTAL'],
-            'Belum Terlatih': [total_belum_terlatih],
-            'Terlatih': [total_terlatih]
-        })
-
-        summary_pivot = pd.concat([summary_pivot, total_row])
-        summary_pivot['Jumlah Bidan'] = summary_pivot['Belum Terlatih'] + summary_pivot['Terlatih']
-        return summary_pivot
-
-    @render.ui
-    @reactive.event(input.action_button)  
-    def rekap_tabel_bidan():
-        df = rekap_data_bidan()
-        df = pl.DataFrame(df)
-        df = df.with_columns(pl.arange(1, df.height + 1).alias("No")).select(["No", *df.columns])
-        return ui.HTML(DT(df, scrollY="400px", scrollCollapse=True, paging=False,
-                          search={"regex": True, "caseInsensitive": True},
-                          buttons=["copyHtml5", "csvHtml5", "excelHtml5"]))
+        return fig
     ### akhir KB
 
     ###progress
