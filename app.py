@@ -1423,12 +1423,17 @@ def server(input, output, session):
             ).agg([
                 pl.col("PUS").sum()
             ])
-        
+
         # Proses data dengan Polars
         df_processed = (
             aggregated
             .with_columns(
-                pl.col("BULAN").replace(month_order).alias("month_order")
+                pl.col("BULAN").replace(month_order).alias("month_order"),
+                # Format angka dengan pemisah titik (.) untuk tooltip
+                pl.col("PUS").map_elements(
+                    lambda x: f"{x:,}".replace(",", "."),
+                    return_dtype=pl.Utf8
+                ).alias("PUS_formatted")
             )
             .sort("month_order")
         )
@@ -1436,20 +1441,31 @@ def server(input, output, session):
         # Hitung batas y-axis
         min_value = df_processed["PUS"].min()
         max_value = df_processed["PUS"].max()
-        y_min = min_value - (min_value * 0.05)
-        y_max = max_value + (max_value * 0.05)
+        y_min = min_value - (min_value * 0.001)
+        y_max = max_value + (max_value * 0.001)
 
         # Konversi ke Pandas untuk Altair
-       # df_for_viz = df_processed.to_pandas()
+        df_for_viz = df_processed.to_pandas()
 
-        # Buat grafik (DIPERBAIKI)
-        chart = alt.Chart(df_processed).mark_line(point=True).encode(
+        # Buat grafik
+        chart = alt.Chart(df_for_viz).mark_line(point=True).encode(
             x=alt.X('BULAN:N', 
-                    sort=list(month_order.keys())),  # <-- TAMBAHKAN TANDA KOMA DI SINI
-            y=alt.Y('PUS:Q', 
+                    sort=list(month_order.keys()),
+                    axis=alt.Axis(
+                        labelAngle=0,  # Label horizontal
+                        labelLimit=150,  # Batas lebar label sebelum otomatis rotate
+                        labelOverlap="parity"  # Hindari tumpang tindih
+                    )),
+            y=alt.Y('PUS:Q',
                     scale=alt.Scale(domain=(y_min, y_max), nice=False),
-                    title='Jumlah PUS'),
-            tooltip=['BULAN', 'PUS']
+                    axis=alt.Axis(
+                        labelExpr='replace(format(datum.value, ",.0f"), ",", ".")',
+                        title='Jumlah PUS'
+                    )),
+            tooltip=[
+                alt.Tooltip('BULAN:N', title='Bulan'),
+                alt.Tooltip('PUS_formatted:N', title='Jumlah PUS')
+            ]
         ).properties(
             title='Tren Jumlah PUS di Sulawesi Barat'
         ).configure_view(
@@ -1458,35 +1474,11 @@ def server(input, output, session):
             grid=False
         ).configure_point(
             size=100
+        ).configure(
+            padding=20,  # Tambah padding
+            background='#f6f8fa'  # Warna background
         )
-        # Tampilkan grafik
-        
-        # # Hitung nilai minimum untuk sumbu Y (Januari - 10%)
-        # nilai_januari = aggregated.filter(pl.col("BULAN") == "JANUARI")["PUS"][0]
-        # y_min = nilai_januari - (nilai_januari * 0.01)  # Januari - 10%
-        # max_value = aggregated["PUS"].max() * 1.01
-        # fig = px.line(
-        #     aggregated.to_pandas(),  # Langsung gunakan Polars DataFrame
-        #     x="BULAN",
-        #     y="PUS",
-        #     title="Tren Total PUS",
-        #     labels={"BULAN": "Bulan ", "PUS": "Jumlah PUS "},
-        #     markers=True  # Menambahkan dot (marker) di setiap titik
-        # )
-        
-        # fig.update_yaxes(
-        #     range=[y_min, max_value],
-        #     tickformat=",.0f")  # `None` untuk batas atas otomatis 
-         
-        # fig.update_layout(
-        #     showlegend=False,
-        #     paper_bgcolor="#f6f8fa",
-        #     plot_bgcolor="#f6f8fa",
-        #     margin=dict(l=50, r=50, t=80, b=50)  # Padding: kiri, kanan, atas, bawah
-        # )
-        # fig.update_traces(
-        #     hovertemplate="Bulan = %{x}<br>Jumlah PUS = %{y}"
-        # )
+
         return chart
 
     @render_widget
@@ -1506,12 +1498,17 @@ def server(input, output, session):
             ).agg([
                 pl.col("PUS").sum()
             ])
-        
+
         # Proses data dengan Polars
         df_processed = (
             aggregated
             .with_columns(
-                pl.col("BULAN").replace(month_order).alias("month_order")
+                pl.col("BULAN").replace(month_order).alias("month_order"),
+                # Format angka dengan pemisah titik (.) untuk tooltip
+                pl.col("PUS").map_elements(
+                    lambda x: f"{x:,}".replace(",", "."),
+                    return_dtype=pl.Utf8
+                ).alias("PUS_formatted")
             )
             .sort("month_order")
         )
@@ -1519,20 +1516,31 @@ def server(input, output, session):
         # Hitung batas y-axis
         min_value = df_processed["PUS"].min()
         max_value = df_processed["PUS"].max()
-        y_min = min_value - (min_value * 0.05)
-        y_max = max_value + (max_value * 0.05)
+        y_min = min_value - (min_value * 0.001)
+        y_max = max_value + (max_value * 0.001)
 
         # Konversi ke Pandas untuk Altair
-       # df_for_viz = df_processed.to_pandas()
+        df_for_viz = df_processed.to_pandas()
 
-        # Buat grafik (DIPERBAIKI)
-        chart = alt.Chart(df_processed).mark_line(point=True).encode(
+        # Buat grafik
+        chart = alt.Chart(df_for_viz).mark_line(point=True).encode(
             x=alt.X('BULAN:N', 
-                    sort=list(month_order.keys())),  # <-- TAMBAHKAN TANDA KOMA DI SINI
-            y=alt.Y('PUS:Q', 
+                    sort=list(month_order.keys()),
+                    axis=alt.Axis(
+                        labelAngle=0,  # Label horizontal
+                        labelLimit=150,  # Batas lebar label sebelum otomatis rotate
+                        labelOverlap="parity"  # Hindari tumpang tindih
+                    )),
+            y=alt.Y('PUS:Q',
                     scale=alt.Scale(domain=(y_min, y_max), nice=False),
-                    title='Jumlah PUS'),
-            tooltip=['BULAN', 'PUS']
+                    axis=alt.Axis(
+                        labelExpr='replace(format(datum.value, ",.0f"), ",", ".")',
+                        title='Jumlah PUS'
+                    )),
+            tooltip=[
+                alt.Tooltip('BULAN:N', title='Bulan'),
+                alt.Tooltip('PUS_formatted:N', title='Jumlah PUS')
+            ]
         ).properties(
             title='Tren Jumlah PUS di Sulawesi Barat'
         ).configure_view(
@@ -1541,35 +1549,11 @@ def server(input, output, session):
             grid=False
         ).configure_point(
             size=100
+        ).configure(
+            padding=20,  # Tambah padding
+            background='#f6f8fa'  # Warna background
         )
-        # Tampilkan grafik
-        
-        # # Hitung nilai minimum untuk sumbu Y (Januari - 10%)
-        # nilai_januari = aggregated.filter(pl.col("BULAN") == "JANUARI")["PUS"][0]
-        # y_min = nilai_januari - (nilai_januari * 0.01)  # Januari - 10%
-        # max_value = aggregated["PUS"].max() * 1.01
-        # fig = px.line(
-        #     aggregated.to_pandas(),  # Langsung gunakan Polars DataFrame
-        #     x="BULAN",
-        #     y="PUS",
-        #     title="Tren Total PUS",
-        #     labels={"BULAN": "Bulan ", "PUS": "Jumlah PUS "},
-        #     markers=True  # Menambahkan dot (marker) di setiap titik
-        # )
-        
-        # fig.update_yaxes(
-        #     range=[y_min, max_value],
-        #     tickformat=",.0f")  # `None` untuk batas atas otomatis 
-         
-        # fig.update_layout(
-        #     showlegend=False,
-        #     paper_bgcolor="#f6f8fa",
-        #     plot_bgcolor="#f6f8fa",
-        #     margin=dict(l=50, r=50, t=80, b=50)  # Padding: kiri, kanan, atas, bawah
-        # )
-        # fig.update_traces(
-        #     hovertemplate="Bulan = %{x}<br>Jumlah PUS = %{y}"
-        # )
+
         return chart
 
     @render_widget
@@ -1589,12 +1573,17 @@ def server(input, output, session):
             ).agg([
                 pl.col("PUS").sum()
             ])
-        
+
         # Proses data dengan Polars
         df_processed = (
             aggregated
             .with_columns(
-                pl.col("BULAN").replace(month_order).alias("month_order")
+                pl.col("BULAN").replace(month_order).alias("month_order"),
+                # Format angka dengan pemisah titik (.) untuk tooltip
+                pl.col("PUS").map_elements(
+                    lambda x: f"{x:,}".replace(",", "."),
+                    return_dtype=pl.Utf8
+                ).alias("PUS_formatted")
             )
             .sort("month_order")
         )
@@ -1602,20 +1591,31 @@ def server(input, output, session):
         # Hitung batas y-axis
         min_value = df_processed["PUS"].min()
         max_value = df_processed["PUS"].max()
-        y_min = min_value - (min_value * 0.05)
-        y_max = max_value + (max_value * 0.05)
+        y_min = min_value - (min_value * 0.001)
+        y_max = max_value + (max_value * 0.001)
 
         # Konversi ke Pandas untuk Altair
-       # df_for_viz = df_processed.to_pandas()
+        df_for_viz = df_processed.to_pandas()
 
-        # Buat grafik (DIPERBAIKI)
-        chart = alt.Chart(df_processed).mark_line(point=True).encode(
+        # Buat grafik
+        chart = alt.Chart(df_for_viz).mark_line(point=True).encode(
             x=alt.X('BULAN:N', 
-                    sort=list(month_order.keys())),  # <-- TAMBAHKAN TANDA KOMA DI SINI
-            y=alt.Y('PUS:Q', 
+                    sort=list(month_order.keys()),
+                    axis=alt.Axis(
+                        labelAngle=0,  # Label horizontal
+                        labelLimit=150,  # Batas lebar label sebelum otomatis rotate
+                        labelOverlap="parity"  # Hindari tumpang tindih
+                    )),
+            y=alt.Y('PUS:Q',
                     scale=alt.Scale(domain=(y_min, y_max), nice=False),
-                    title='Jumlah PUS'),
-            tooltip=['BULAN', 'PUS']
+                    axis=alt.Axis(
+                        labelExpr='replace(format(datum.value, ",.0f"), ",", ".")',
+                        title='Jumlah PUS'
+                    )),
+            tooltip=[
+                alt.Tooltip('BULAN:N', title='Bulan'),
+                alt.Tooltip('PUS_formatted:N', title='Jumlah PUS')
+            ]
         ).properties(
             title='Tren Jumlah PUS di Sulawesi Barat'
         ).configure_view(
@@ -1624,35 +1624,11 @@ def server(input, output, session):
             grid=False
         ).configure_point(
             size=100
+        ).configure(
+            padding=20,  # Tambah padding
+            background='#f6f8fa'  # Warna background
         )
-        # Tampilkan grafik
-        
-        # # Hitung nilai minimum untuk sumbu Y (Januari - 10%)
-        # nilai_januari = aggregated.filter(pl.col("BULAN") == "JANUARI")["PUS"][0]
-        # y_min = nilai_januari - (nilai_januari * 0.01)  # Januari - 10%
-        # max_value = aggregated["PUS"].max() * 1.01
-        # fig = px.line(
-        #     aggregated.to_pandas(),  # Langsung gunakan Polars DataFrame
-        #     x="BULAN",
-        #     y="PUS",
-        #     title="Tren Total PUS",
-        #     labels={"BULAN": "Bulan ", "PUS": "Jumlah PUS "},
-        #     markers=True  # Menambahkan dot (marker) di setiap titik
-        # )
-        
-        # fig.update_yaxes(
-        #     range=[y_min, max_value],
-        #     tickformat=",.0f")  # `None` untuk batas atas otomatis 
-         
-        # fig.update_layout(
-        #     showlegend=False,
-        #     paper_bgcolor="#f6f8fa",
-        #     plot_bgcolor="#f6f8fa",
-        #     margin=dict(l=50, r=50, t=80, b=50)  # Padding: kiri, kanan, atas, bawah
-        # )
-        # fig.update_traces(
-        #     hovertemplate="Bulan = %{x}<br>Jumlah PUS = %{y}"
-        # )
+
         return chart
 
     @render_widget
@@ -1672,12 +1648,17 @@ def server(input, output, session):
             ).agg([
                 pl.col("PUS").sum()
             ])
-        
+
         # Proses data dengan Polars
         df_processed = (
             aggregated
             .with_columns(
-                pl.col("BULAN").replace(month_order).alias("month_order")
+                pl.col("BULAN").replace(month_order).alias("month_order"),
+                # Format angka dengan pemisah titik (.) untuk tooltip
+                pl.col("PUS").map_elements(
+                    lambda x: f"{x:,}".replace(",", "."),
+                    return_dtype=pl.Utf8
+                ).alias("PUS_formatted")
             )
             .sort("month_order")
         )
@@ -1685,20 +1666,31 @@ def server(input, output, session):
         # Hitung batas y-axis
         min_value = df_processed["PUS"].min()
         max_value = df_processed["PUS"].max()
-        y_min = min_value - (min_value * 0.05)
-        y_max = max_value + (max_value * 0.05)
+        y_min = min_value - (min_value * 0.001)
+        y_max = max_value + (max_value * 0.001)
 
         # Konversi ke Pandas untuk Altair
-       # df_for_viz = df_processed.to_pandas()
+        df_for_viz = df_processed.to_pandas()
 
-        # Buat grafik (DIPERBAIKI)
-        chart = alt.Chart(df_processed).mark_line(point=True).encode(
+        # Buat grafik
+        chart = alt.Chart(df_for_viz).mark_line(point=True).encode(
             x=alt.X('BULAN:N', 
-                    sort=list(month_order.keys())),  # <-- TAMBAHKAN TANDA KOMA DI SINI
-            y=alt.Y('PUS:Q', 
+                    sort=list(month_order.keys()),
+                    axis=alt.Axis(
+                        labelAngle=0,  # Label horizontal
+                        labelLimit=150,  # Batas lebar label sebelum otomatis rotate
+                        labelOverlap="parity"  # Hindari tumpang tindih
+                    )),
+            y=alt.Y('PUS:Q',
                     scale=alt.Scale(domain=(y_min, y_max), nice=False),
-                    title='Jumlah PUS'),
-            tooltip=['BULAN', 'PUS']
+                    axis=alt.Axis(
+                        labelExpr='replace(format(datum.value, ",.0f"), ",", ".")',
+                        title='Jumlah PUS'
+                    )),
+            tooltip=[
+                alt.Tooltip('BULAN:N', title='Bulan'),
+                alt.Tooltip('PUS_formatted:N', title='Jumlah PUS')
+            ]
         ).properties(
             title='Tren Jumlah PUS di Sulawesi Barat'
         ).configure_view(
@@ -1707,35 +1699,11 @@ def server(input, output, session):
             grid=False
         ).configure_point(
             size=100
+        ).configure(
+            padding=20,  # Tambah padding
+            background='#f6f8fa'  # Warna background
         )
-        # Tampilkan grafik
-        
-        # # Hitung nilai minimum untuk sumbu Y (Januari - 10%)
-        # nilai_januari = aggregated.filter(pl.col("BULAN") == "JANUARI")["PUS"][0]
-        # y_min = nilai_januari - (nilai_januari * 0.01)  # Januari - 10%
-        # max_value = aggregated["PUS"].max() * 1.01
-        # fig = px.line(
-        #     aggregated.to_pandas(),  # Langsung gunakan Polars DataFrame
-        #     x="BULAN",
-        #     y="PUS",
-        #     title="Tren Total PUS",
-        #     labels={"BULAN": "Bulan ", "PUS": "Jumlah PUS "},
-        #     markers=True  # Menambahkan dot (marker) di setiap titik
-        # )
-        
-        # fig.update_yaxes(
-        #     range=[y_min, max_value],
-        #     tickformat=",.0f")  # `None` untuk batas atas otomatis 
-         
-        # fig.update_layout(
-        #     showlegend=False,
-        #     paper_bgcolor="#f6f8fa",
-        #     plot_bgcolor="#f6f8fa",
-        #     margin=dict(l=50, r=50, t=80, b=50)  # Padding: kiri, kanan, atas, bawah
-        # )
-        # fig.update_traces(
-        #     hovertemplate="Bulan = %{x}<br>Jumlah PUS = %{y}"
-        # )
+
         return chart
     
     @render_widget
@@ -1755,12 +1723,17 @@ def server(input, output, session):
             ).agg([
                 pl.col("PUS").sum()
             ])
-        
+
         # Proses data dengan Polars
         df_processed = (
             aggregated
             .with_columns(
-                pl.col("BULAN").replace(month_order).alias("month_order")
+                pl.col("BULAN").replace(month_order).alias("month_order"),
+                # Format angka dengan pemisah titik (.) untuk tooltip
+                pl.col("PUS").map_elements(
+                    lambda x: f"{x:,}".replace(",", "."),
+                    return_dtype=pl.Utf8
+                ).alias("PUS_formatted")
             )
             .sort("month_order")
         )
@@ -1768,20 +1741,31 @@ def server(input, output, session):
         # Hitung batas y-axis
         min_value = df_processed["PUS"].min()
         max_value = df_processed["PUS"].max()
-        y_min = min_value - (min_value * 0.05)
-        y_max = max_value + (max_value * 0.05)
+        y_min = min_value - (min_value * 0.001)
+        y_max = max_value + (max_value * 0.001)
 
         # Konversi ke Pandas untuk Altair
-       # df_for_viz = df_processed.to_pandas()
+        df_for_viz = df_processed.to_pandas()
 
-        # Buat grafik (DIPERBAIKI)
-        chart = alt.Chart(df_processed).mark_line(point=True).encode(
+        # Buat grafik
+        chart = alt.Chart(df_for_viz).mark_line(point=True).encode(
             x=alt.X('BULAN:N', 
-                    sort=list(month_order.keys())),  # <-- TAMBAHKAN TANDA KOMA DI SINI
-            y=alt.Y('PUS:Q', 
+                    sort=list(month_order.keys()),
+                    axis=alt.Axis(
+                        labelAngle=0,  # Label horizontal
+                        labelLimit=150,  # Batas lebar label sebelum otomatis rotate
+                        labelOverlap="parity"  # Hindari tumpang tindih
+                    )),
+            y=alt.Y('PUS:Q',
                     scale=alt.Scale(domain=(y_min, y_max), nice=False),
-                    title='Jumlah PUS'),
-            tooltip=['BULAN', 'PUS']
+                    axis=alt.Axis(
+                        labelExpr='replace(format(datum.value, ",.0f"), ",", ".")',
+                        title='Jumlah PUS'
+                    )),
+            tooltip=[
+                alt.Tooltip('BULAN:N', title='Bulan'),
+                alt.Tooltip('PUS_formatted:N', title='Jumlah PUS')
+            ]
         ).properties(
             title='Tren Jumlah PUS di Sulawesi Barat'
         ).configure_view(
@@ -1790,35 +1774,11 @@ def server(input, output, session):
             grid=False
         ).configure_point(
             size=100
+        ).configure(
+            padding=20,  # Tambah padding
+            background='#f6f8fa'  # Warna background
         )
-        # Tampilkan grafik
-        
-        # # Hitung nilai minimum untuk sumbu Y (Januari - 10%)
-        # nilai_januari = aggregated.filter(pl.col("BULAN") == "JANUARI")["PUS"][0]
-        # y_min = nilai_januari - (nilai_januari * 0.01)  # Januari - 10%
-        # max_value = aggregated["PUS"].max() * 1.01
-        # fig = px.line(
-        #     aggregated.to_pandas(),  # Langsung gunakan Polars DataFrame
-        #     x="BULAN",
-        #     y="PUS",
-        #     title="Tren Total PUS",
-        #     labels={"BULAN": "Bulan ", "PUS": "Jumlah PUS "},
-        #     markers=True  # Menambahkan dot (marker) di setiap titik
-        # )
-        
-        # fig.update_yaxes(
-        #     range=[y_min, max_value],
-        #     tickformat=",.0f")  # `None` untuk batas atas otomatis 
-         
-        # fig.update_layout(
-        #     showlegend=False,
-        #     paper_bgcolor="#f6f8fa",
-        #     plot_bgcolor="#f6f8fa",
-        #     margin=dict(l=50, r=50, t=80, b=50)  # Padding: kiri, kanan, atas, bawah
-        # )
-        # fig.update_traces(
-        #     hovertemplate="Bulan = %{x}<br>Jumlah PUS = %{y}"
-        # )
+
         return chart
     
     @render_widget
@@ -1838,12 +1798,17 @@ def server(input, output, session):
             ).agg([
                 pl.col("PUS").sum()
             ])
-        
+
         # Proses data dengan Polars
         df_processed = (
             aggregated
             .with_columns(
-                pl.col("BULAN").replace(month_order).alias("month_order")
+                pl.col("BULAN").replace(month_order).alias("month_order"),
+                # Format angka dengan pemisah titik (.) untuk tooltip
+                pl.col("PUS").map_elements(
+                    lambda x: f"{x:,}".replace(",", "."),
+                    return_dtype=pl.Utf8
+                ).alias("PUS_formatted")
             )
             .sort("month_order")
         )
@@ -1851,20 +1816,31 @@ def server(input, output, session):
         # Hitung batas y-axis
         min_value = df_processed["PUS"].min()
         max_value = df_processed["PUS"].max()
-        y_min = min_value - (min_value * 0.05)
-        y_max = max_value + (max_value * 0.05)
+        y_min = min_value - (min_value * 0.001)
+        y_max = max_value + (max_value * 0.001)
 
         # Konversi ke Pandas untuk Altair
-       # df_for_viz = df_processed.to_pandas()
+        df_for_viz = df_processed.to_pandas()
 
-        # Buat grafik (DIPERBAIKI)
-        chart = alt.Chart(df_processed).mark_line(point=True).encode(
+        # Buat grafik
+        chart = alt.Chart(df_for_viz).mark_line(point=True).encode(
             x=alt.X('BULAN:N', 
-                    sort=list(month_order.keys())),  # <-- TAMBAHKAN TANDA KOMA DI SINI
-            y=alt.Y('PUS:Q', 
+                    sort=list(month_order.keys()),
+                    axis=alt.Axis(
+                        labelAngle=0,  # Label horizontal
+                        labelLimit=150,  # Batas lebar label sebelum otomatis rotate
+                        labelOverlap="parity"  # Hindari tumpang tindih
+                    )),
+            y=alt.Y('PUS:Q',
                     scale=alt.Scale(domain=(y_min, y_max), nice=False),
-                    title='Jumlah PUS'),
-            tooltip=['BULAN', 'PUS']
+                    axis=alt.Axis(
+                        labelExpr='replace(format(datum.value, ",.0f"), ",", ".")',
+                        title='Jumlah PUS'
+                    )),
+            tooltip=[
+                alt.Tooltip('BULAN:N', title='Bulan'),
+                alt.Tooltip('PUS_formatted:N', title='Jumlah PUS')
+            ]
         ).properties(
             title='Tren Jumlah PUS di Sulawesi Barat'
         ).configure_view(
@@ -1873,35 +1849,11 @@ def server(input, output, session):
             grid=False
         ).configure_point(
             size=100
+        ).configure(
+            padding=20,  # Tambah padding
+            background='#f6f8fa'  # Warna background
         )
-        # Tampilkan grafik
-        
-        # # Hitung nilai minimum untuk sumbu Y (Januari - 10%)
-        # nilai_januari = aggregated.filter(pl.col("BULAN") == "JANUARI")["PUS"][0]
-        # y_min = nilai_januari - (nilai_januari * 0.01)  # Januari - 10%
-        # max_value = aggregated["PUS"].max() * 1.01
-        # fig = px.line(
-        #     aggregated.to_pandas(),  # Langsung gunakan Polars DataFrame
-        #     x="BULAN",
-        #     y="PUS",
-        #     title="Tren Total PUS",
-        #     labels={"BULAN": "Bulan ", "PUS": "Jumlah PUS "},
-        #     markers=True  # Menambahkan dot (marker) di setiap titik
-        # )
-        
-        # fig.update_yaxes(
-        #     range=[y_min, max_value],
-        #     tickformat=",.0f")  # `None` untuk batas atas otomatis 
-         
-        # fig.update_layout(
-        #     showlegend=False,
-        #     paper_bgcolor="#f6f8fa",
-        #     plot_bgcolor="#f6f8fa",
-        #     margin=dict(l=50, r=50, t=80, b=50)  # Padding: kiri, kanan, atas, bawah
-        # )
-        # fig.update_traces(
-        #     hovertemplate="Bulan = %{x}<br>Jumlah PUS = %{y}"
-        # )
+
         return chart
     ### akhir KB
 
