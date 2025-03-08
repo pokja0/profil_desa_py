@@ -1430,7 +1430,7 @@ def server(input, output, session):
         y_min = nilai_januari - (nilai_januari * 0.01)  # Januari - 10%
         max_value = aggregated["PUS"].max() * 1.01
         fig = px.line(
-            aggregated,  # Langsung gunakan Polars DataFrame
+            aggregated.to_pandas(),  # Langsung gunakan Polars DataFrame
             x="BULAN",
             y="PUS",
             title="Tren Total PUS",
@@ -1481,7 +1481,7 @@ def server(input, output, session):
         max_value = aggregated["PA"].max() * 1.05
 
         fig = px.line(
-            aggregated,  # Langsung gunakan Polars DataFrame
+            aggregated.to_pandas(),  # Langsung gunakan Polars DataFrame
             x="BULAN",
             y="PA",
             title="Tren Total PA",
@@ -1533,7 +1533,7 @@ def server(input, output, session):
         max_value = aggregated["UNMET NEED"].max() * 1.1
 
         fig = px.line(
-            aggregated,  # Langsung gunakan Polars DataFrame
+            aggregated.to_pandas(),  # Langsung gunakan Polars DataFrame
             x="BULAN",
             y="UNMET NEED",
             title="Tren Persentase Unmet Need",
@@ -1591,7 +1591,7 @@ def server(input, output, session):
         max_value = aggregated["MKJP"].max() * 1.05
 
         fig = px.line(
-            aggregated,  # Langsung gunakan Polars DataFrame
+            aggregated.to_pandas(),  # Langsung gunakan Polars DataFrame
             x="BULAN",
             y="MKJP",
             title="Tren Persentase MKJP",
@@ -1651,7 +1651,7 @@ def server(input, output, session):
 
         # Buat grafik batang horizontal
         fig = px.bar(
-            data_sorted,
+            data_sorted.to_pandas(),
             y="METODE_KB",  # Metode KB di sumbu-y
             x="JUMLAH",     # Jumlah pengguna di sumbu-x
             title="Perbandingan Jumlah Pengguna Metode KB",
@@ -1711,7 +1711,7 @@ def server(input, output, session):
 
         # Buat donut chart menggunakan Plotly (langsung dari Polars DataFrame)
         fig = px.pie(
-            summary_data,  # Langsung gunakan Polars DataFrame
+            summary_data.to_pandas(),  # Langsung gunakan Polars DataFrame
             names="KLASIFIKASI",       # Label untuk kategori
             values="count",            # Nilai untuk ukuran slice
             title="Kompetensi Tenaga KB",
