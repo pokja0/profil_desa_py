@@ -2089,7 +2089,7 @@ def server(input, output, session):
         ).properties(
             width='container',
             height='container',
-            title="Proporsi Klasifikasi Pelatihan"
+            title=" Status Pelatihan Dokter/Bidan"
         )
 
         # Arc (donut)
