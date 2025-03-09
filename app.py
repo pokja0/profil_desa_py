@@ -6,7 +6,6 @@ import polars as pl
 from shinywidgets import output_widget, render_widget
 
 import plotly.express as px
-import plotly.io as pio 
 import faicons
 
 import shiny as pyshiny
@@ -27,6 +26,7 @@ from pathlib import Path
 import asyncio
 from htmltools import head_content
 import altair as alt
+
 
 daftar_bulan = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"]
 
@@ -1413,7 +1413,7 @@ def server(input, output, session):
         filter_kecamatan = val_kec.get()
         filter_desa = val_desa.get()
         filter_bulan = input.pilih_bulan()
-        aggregated =  data_pus.filter(
+        df_processed =  data_pus.filter(
                 pl.col("KABUPATEN").is_in(filter_kabupaten),
                 pl.col("KECAMATAN").is_in(filter_kecamatan),
                 pl.col("KELURAHAN").is_in(filter_desa),
@@ -1426,57 +1426,109 @@ def server(input, output, session):
 
         # Proses data dengan Polars
         df_processed = (
-            aggregated
+            df_processed
             .with_columns(
-                pl.col("BULAN").replace(month_order).alias("month_order"),
-                # Format angka dengan pemisah titik (.) untuk tooltip
-                pl.col("PUS").map_elements(
+                # Konversi bulan ke numerik
+                pl.col("BULAN")
+                .replace(month_order)
+                .cast(pl.Int32)
+                .alias("month_order")
+            )
+            .with_columns(
+                pl.col("PUS")
+                .map_elements(
                     lambda x: f"{x:,}".replace(",", "."),
                     return_dtype=pl.Utf8
-                ).alias("PUS_formatted")
+                )
+                .alias("JUMLAH PUS")
             )
             .sort("month_order")
+            .drop("month_order")
         )
 
+        # Ambil bulan pertama dan terakhir
+        first_month = df_processed["BULAN"][0]
+        last_month = df_processed["BULAN"][-1]
+
         # Hitung batas y-axis
-        min_value = df_processed["PUS"].min()
-        max_value = df_processed["PUS"].max()
-        y_min = min_value - (min_value * 0.001)
-        y_max = max_value + (max_value * 0.001)
+        y_min = df_processed["PUS"].min() * 0.95
+        y_max = df_processed["PUS"].max() * 1.05
 
-        # Konversi ke Pandas untuk Altair
-        df_for_viz = df_processed.to_pandas()
-
-        # Buat grafik
-        chart = alt.Chart(df_for_viz).mark_line(point=True).encode(
+        # === Base Chart ===
+        base = alt.Chart(df_processed).mark_line(
+            point=alt.OverlayMarkDef(size=200, filled=True, fillOpacity=1, color='#3498db')
+        ).encode(
             x=alt.X('BULAN:N', 
                     sort=list(month_order.keys()),
                     axis=alt.Axis(
-                        labelAngle=0,  # Label horizontal
-                        labelLimit=150,  # Batas lebar label sebelum otomatis rotate
-                        labelOverlap="parity"  # Hindari tumpang tindih
+                        labelAngle=0, 
+                        labelLimit=200, 
+                        labelOverlap="parity",
+                        labelExpr="slice(datum.label, 0, 3)"  # Ambil 3 huruf pertama
                     )),
             y=alt.Y('PUS:Q',
-                    scale=alt.Scale(domain=(y_min, y_max), nice=False),
+                    scale=alt.Scale(domain=(y_min, y_max)),
                     axis=alt.Axis(
-                        labelExpr='replace(format(datum.value, ",.0f"), ",", ".")',
-                        title='Jumlah PUS'
+                        labelExpr='replace(format(datum.value, ",.0f"), ",", ".")', 
+                        title='JUMLAH PUS',
+                        tickCount=5  # BATASI 5 TICK SAJA
                     )),
-            tooltip=[
-                alt.Tooltip('BULAN:N', title='Bulan'),
-                alt.Tooltip('PUS_formatted:N', title='Jumlah PUS')
-            ]
-        ).properties(
-            title='Tren Jumlah PUS di Sulawesi Barat'
+            tooltip=[alt.Tooltip('BULAN:N'), alt.Tooltip('JUMLAH PUS:N')]
+        )
+
+        # === Anotasi Label (Perubahan warna) ===
+        start_label = alt.Chart(df_processed).transform_filter(
+            alt.datum.BULAN == first_month
+        ).mark_text(
+            align='center', 
+            dy=-25, 
+            fontSize=11, 
+            fontWeight='bold', 
+            color='#3498db'  # Sesuaikan dengan warna point
+        ).encode(
+            x=alt.X('BULAN:N', sort=list(month_order.keys())),
+            y=alt.Y('PUS:Q'),
+            text=alt.Text('JUMLAH PUS:N')
+        )
+
+        end_label = alt.Chart(df_processed).transform_filter(
+            alt.datum.BULAN == last_month
+        ).mark_text(
+            align='center', 
+            dy=-25, 
+            fontSize=11, 
+            fontWeight='bold', 
+            color='#3498db'  # Sesuaikan dengan warna point
+        ).encode(
+            x=alt.X('BULAN:N', sort=list(month_order.keys())),
+            y=alt.Y('PUS:Q'),
+            text=alt.Text('JUMLAH PUS:N')
+        )
+
+        # === Gabungkan Semua Elemen ===
+        chart = alt.layer(base, start_label, end_label).properties(
+            title=alt.TitleParams(
+                'Tren Jumlah PUS',
+                anchor='middle',  # Judul rata kiri
+                offset=20
+            ),
+            width='container',  # Lebar menyesuaikan layar
+            height='container'
         ).configure_view(
             strokeWidth=0
         ).configure_axis(
-            grid=False
-        ).configure_point(
-            size=100
+            grid=False,
+            labelFontSize=12,
+            titleFontSize=14
         ).configure(
-            padding=20,  # Tambah padding
-            background='#f6f8fa'  # Warna background
+            padding={"left": 0, "right": 0, "top": 20, "bottom": 0},  # Sesuaikan padding
+            background='#f6f8fa',
+            autosize=alt.AutoSizeParams(
+                type='fit',
+                contains='padding'
+            )
+        ).configure_legend(
+            disable=True  # Hapus legenda jika tidak diperlukan
         )
 
         return chart
@@ -1488,7 +1540,7 @@ def server(input, output, session):
         filter_kecamatan = val_kec.get()
         filter_desa = val_desa.get()
         filter_bulan = input.pilih_bulan()
-        aggregated =  data_pus.filter(
+        df_processed =  data_pus.filter(
                 pl.col("KABUPATEN").is_in(filter_kabupaten),
                 pl.col("KECAMATAN").is_in(filter_kecamatan),
                 pl.col("KELURAHAN").is_in(filter_desa),
@@ -1501,57 +1553,96 @@ def server(input, output, session):
 
         # Proses data dengan Polars
         df_processed = (
-            aggregated
+            df_processed
             .with_columns(
-                pl.col("BULAN").replace(month_order).alias("month_order"),
-                # Format angka dengan pemisah titik (.) untuk tooltip
-                pl.col("PUS").map_elements(
+                # Konversi bulan ke numerik
+                pl.col("BULAN")
+                .replace(month_order)
+                .cast(pl.Int32)
+                .alias("month_order")
+            )
+            .with_columns(
+                pl.col("PUS")
+                .map_elements(
                     lambda x: f"{x:,}".replace(",", "."),
                     return_dtype=pl.Utf8
-                ).alias("PUS_formatted")
+                )
+                .alias("PUS_formatted")
             )
             .sort("month_order")
+            .drop("month_order")
         )
 
+        # Ambil bulan pertama dan terakhir
+        first_month = df_processed["BULAN"][0]
+        last_month = df_processed["BULAN"][-1]
+
         # Hitung batas y-axis
-        min_value = df_processed["PUS"].min()
-        max_value = df_processed["PUS"].max()
-        y_min = min_value - (min_value * 0.001)
-        y_max = max_value + (max_value * 0.001)
+        y_min = df_processed["PUS"].min() * 0.95
+        y_max = df_processed["PUS"].max() * 1.05
 
-        # Konversi ke Pandas untuk Altair
-        df_for_viz = df_processed.to_pandas()
-
-        # Buat grafik
-        chart = alt.Chart(df_for_viz).mark_line(point=True).encode(
+        # === Base Chart ===
+        base = alt.Chart(df_processed).mark_line(
+            point=alt.OverlayMarkDef(size=200, filled=True, fillOpacity=1, color='#3498db')
+        ).encode(
             x=alt.X('BULAN:N', 
                     sort=list(month_order.keys()),
                     axis=alt.Axis(
-                        labelAngle=0,  # Label horizontal
-                        labelLimit=150,  # Batas lebar label sebelum otomatis rotate
-                        labelOverlap="parity"  # Hindari tumpang tindih
+                        labelAngle=0, 
+                        labelLimit=200, 
+                        labelOverlap="parity",
+                        labelExpr="slice(datum.label, 0, 3)"  # Ambil 3 huruf pertama
                     )),
             y=alt.Y('PUS:Q',
-                    scale=alt.Scale(domain=(y_min, y_max), nice=False),
+                    scale=alt.Scale(domain=(y_min, y_max)),
                     axis=alt.Axis(
-                        labelExpr='replace(format(datum.value, ",.0f"), ",", ".")',
+                        labelExpr='replace(format(datum.value, ",.0f"), ",", ".")', 
                         title='Jumlah PUS'
                     )),
-            tooltip=[
-                alt.Tooltip('BULAN:N', title='Bulan'),
-                alt.Tooltip('PUS_formatted:N', title='Jumlah PUS')
-            ]
-        ).properties(
+            tooltip=[alt.Tooltip('BULAN:N'), alt.Tooltip('PUS_formatted:N')]
+        )
+
+        # === Anotasi Label (Perubahan warna) ===
+        start_label = alt.Chart(df_processed).transform_filter(
+            alt.datum.BULAN == first_month
+        ).mark_text(
+            align='center', 
+            dy=-25, 
+            fontSize=14, 
+            fontWeight='bold', 
+            color='#3498db'  # Sesuaikan dengan warna point
+        ).encode(
+            x=alt.X('BULAN:N', sort=list(month_order.keys())),
+            y=alt.Y('PUS:Q'),
+            text=alt.Text('PUS_formatted:N')
+        )
+
+        end_label = alt.Chart(df_processed).transform_filter(
+            alt.datum.BULAN == last_month
+        ).mark_text(
+            align='center', 
+            dy=-25, 
+            fontSize=14, 
+            fontWeight='bold', 
+            color='#3498db'  # Sesuaikan dengan warna point
+        ).encode(
+            x=alt.X('BULAN:N', sort=list(month_order.keys())),
+            y=alt.Y('PUS:Q'),
+            text=alt.Text('PUS_formatted:N')
+        )
+
+        # === Gabungkan Semua Elemen ===
+        chart = alt.layer(base, start_label, end_label).properties(
             title='Tren Jumlah PUS di Sulawesi Barat'
         ).configure_view(
             strokeWidth=0
         ).configure_axis(
-            grid=False
-        ).configure_point(
-            size=100
+            grid=False,
+            labelFontSize=12,
+            titleFontSize=14
         ).configure(
-            padding=20,  # Tambah padding
-            background='#f6f8fa'  # Warna background
+            padding=20,
+            background='#f6f8fa'
         )
 
         return chart

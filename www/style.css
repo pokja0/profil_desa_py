@@ -34,3 +34,13 @@
         max-height: none; /* Biarkan konten menentukan tinggi */
     }
 }
+
+/* Ubah background toolbar */
+.vega-bindings, .vega-embed {
+    background-color: #f6f8fa !important;
+}
+/* Ubah warna tombol interaktif */
+.vega-actions a {
+    background-color: #f6f8fa !important;
+    color: #000 !important; /* Warna teks tombol */
+}
