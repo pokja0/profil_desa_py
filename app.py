@@ -27,6 +27,8 @@ import asyncio
 from htmltools import head_content
 import altair as alt
 
+import pygwalker as pyg
+
 
 daftar_bulan = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"]
 
@@ -90,6 +92,10 @@ month_order = {
     'NOVEMBER': 11,
     'DESEMBER': 12
 }
+
+warna_kuning = "#d4a017"
+
+warna_biru = "#3498db"
 
 app_ui = ui.page_navbar(
     ui.head_content(ui.include_css("www/style.css")),
@@ -254,46 +260,6 @@ app_ui = ui.page_navbar(
                 )
             ),
             ui.nav_panel(
-                "Profil",
-                    # Container utama dengan CSS Grid
-                ui.div(
-                    ui.output_ui("jumlah_desa"),
-                    # Value Box 1
-                    ui.output_ui("kepemilikan_bkb"),
-                    ui.output_ui("kepemilikan_bkr"),
-                    ui.output_ui("kepemilikan_bkl"),
-                    ui.output_ui("kepemilikan_uppka"),
-                    ui.output_ui("kepemilikan_pikr"),
-                    ui.output_ui("kepemilikan_kkb"),
-                    ui.output_ui("kepemilikan_rdk"),
-                    class_="custom-grid"  # Class CSS untuk grid
-                ),
-                ui.layout_column_wrap(
-                    ui.card(
-                        "Administrasi",
-                    ),
-                    ui.card(
-                        ui.layout_column_wrap(
-                            ui.output_ui("kepemilikan_poktan"),
-                            ui.output_ui("profil_wilayah")
-                        )
-                    )
-                ),
-                ui.layout_column_wrap(
-                    ui.card(
-                        output_widget("grafik_piramida")
-                    ),
-                    ui.card(
-                        ui.output_data_frame("tabel_piramida")
-                    )
-                ),
-                # ui.layout_column_wrap(
-                #     ui.card(
-                #         ui.output_data_frame("df")
-                #     )
-                # )
-            ),
-            ui.nav_panel(
                 "Keluarga Berencana",
                     ui.layout_column_wrap(
                         ui.card(
@@ -324,11 +290,45 @@ app_ui = ui.page_navbar(
                         )
                     )
             ),
+                        ui.nav_panel(
+                "Poktan",
+                    # Container utama dengan CSS Grid
+                ui.div(
+                    ui.output_ui("jumlah_desa"),
+                    # Value Box 1
+                    ui.output_ui("kepemilikan_bkb"),
+                    ui.output_ui("kepemilikan_bkr"),
+                    ui.output_ui("kepemilikan_bkl"),
+                    ui.output_ui("kepemilikan_uppka"),
+                    ui.output_ui("kepemilikan_pikr"),
+                    ui.output_ui("kepemilikan_kkb"),
+                    ui.output_ui("kepemilikan_rdk"),
+                    class_="custom-grid"  # Class CSS untuk grid
+                ),
+                ui.layout_column_wrap(
+                    ui.card(
+                        output_widget("grafik_piramida")
+                    ),
+                    ui.card(
+                        ui.output_data_frame("tabel_piramida")
+                    )
+                ),
+                # ui.layout_column_wrap(
+                #     ui.card(
+                #         ui.output_data_frame("df")
+                #     )
+                # )
+            ),
             ui.nav_panel(
-                "Stunting"
+                "Stunting",
+                "Otw"
             ),
         )
         
+    ),
+    ui.nav_panel(
+        "Eksplor Data", 
+        "Otw"
     ),
     ui.nav_panel(
         "Download Data", "ini"
@@ -1408,21 +1408,158 @@ def server(input, output, session):
     data_mix = pl.read_csv("data/data_mix_kontra.csv")
     @render_widget
     @reactive.event(input.action_button)
-    def tren_pus():
+    async def tren_pus():
+        with ui.Progress(min=1, max=15) as p:
+            p.set(message="Sedang Proses", detail="Tunggu ya")
+            p.set(1, message="Tunggu ya")
+
+            filter_kabupaten = val_kab.get()
+            filter_kecamatan = val_kec.get()
+            filter_desa = val_desa.get()
+            filter_bulan = input.pilih_bulan()
+            df_processed =  data_pus.filter(
+                    pl.col("KABUPATEN").is_in(filter_kabupaten),
+                    pl.col("KECAMATAN").is_in(filter_kecamatan),
+                    pl.col("KELURAHAN").is_in(filter_desa),
+                    pl.col("BULAN").is_in(bulan_hingga(filter_bulan))
+                ).group_by(
+                    'PROVINSI', 'BULAN'
+                ).agg([
+                    pl.col("PUS").sum()
+                ])
+
+            # Proses data dengan Polars
+            df_processed = (
+                df_processed
+                .with_columns(
+                    # Konversi bulan ke numerik
+                    pl.col("BULAN")
+                    .replace(month_order)
+                    .cast(pl.Int32)
+                    .alias("month_order")
+                )
+                .with_columns(
+                    pl.col("PUS")
+                    .map_elements(
+                        lambda x: f"{x:,}".replace(",", "."),
+                        return_dtype=pl.Utf8
+                    )
+                    .alias("JUMLAH PUS")
+                )
+                .sort("month_order")
+                .drop("month_order")
+            )
+
+            # Ambil bulan pertama dan terakhir
+            first_month = df_processed["BULAN"][0]
+            last_month = df_processed["BULAN"][-1]
+
+            # Hitung batas y-axis
+            y_min = df_processed["PUS"].min() * 0.95
+            y_max = df_processed["PUS"].max() * 1.05
+
+            # === Base Chart ===
+            base = alt.Chart(df_processed).mark_line(
+                point=alt.OverlayMarkDef(size=200, filled=True, fillOpacity=1, color=warna_biru)
+            ).encode(
+                x=alt.X('BULAN:N', 
+                        sort=list(month_order.keys()),
+                        axis=alt.Axis(
+                            labelAngle=0, 
+                            labelLimit=200, 
+                            labelOverlap="parity",
+                            labelExpr="slice(datum.label, 0, 3)"  # Ambil 3 huruf pertama
+                        )),
+                y=alt.Y('PUS:Q',
+                        scale=alt.Scale(domain=(y_min, y_max)),
+                        axis=alt.Axis(
+                            labelExpr='replace(format(datum.value, ",.0f"), ",", ".")', 
+                            title='JUMLAH PUS',
+                            tickCount=5  # BATASI 5 TICK SAJA
+                        )),
+                tooltip=[alt.Tooltip('BULAN:N'), alt.Tooltip('JUMLAH PUS:N')]
+            )
+
+            p.set(2, message="Tunggu ya")
+            # === Anotasi Label (Perubahan warna) ===
+            start_label = alt.Chart(df_processed).transform_filter(
+                alt.datum.BULAN == first_month
+            ).mark_text(
+                align='center', 
+                dy=-25, 
+                fontSize=11, 
+                fontWeight='bold', 
+                color=warna_kuning  # Sesuaikan dengan warna point
+            ).encode(
+                x=alt.X('BULAN:N', sort=list(month_order.keys())),
+                y=alt.Y('PUS:Q'),
+                text=alt.Text('JUMLAH PUS:N')
+            )
+
+            p.set(3, message="Tunggu ya")
+            end_label = alt.Chart(df_processed).transform_filter(
+                alt.datum.BULAN == last_month
+            ).mark_text(
+                align='center', 
+                dy=-25, 
+                fontSize=11, 
+                fontWeight='bold', 
+                color=warna_kuning  # Sesuaikan dengan warna point
+            ).encode(
+                x=alt.X('BULAN:N', sort=list(month_order.keys())),
+                y=alt.Y('PUS:Q'),
+                text=alt.Text('JUMLAH PUS:N')
+            )
+
+            p.set(4, message="Sedikit lagi")
+
+            chart = alt.layer(base, start_label, end_label).properties(
+                title=alt.TitleParams(
+                    'Tren Jumlah PUS',
+                    anchor='middle',  # Judul rata kiri
+                    offset=20
+                ),
+                width='container',  # Lebar menyesuaikan layar
+                height='container'
+            ).configure_view(
+                strokeWidth=0
+            ).configure_axis(
+                grid=False,
+                labelFontSize=12,
+                titleFontSize=14
+            ).configure(
+                padding={"left": 0, "right": 0, "top": 20, "bottom": 0},  # Sesuaikan padding
+                background='#f6f8fa',
+                autosize=alt.AutoSizeParams(
+                    type='fit',
+                    contains='padding'
+                )
+            ).configure_legend(
+                disable=True  # Hapus legenda jika tidak diperlukan
+            )
+           
+            p.set(5, message="Sedikit lagi")
+            # === Gabungkan Semua Elemen ===
+            
+        return chart
+
+    @render_widget
+    @reactive.event(input.action_button)
+    def tren_pa():
         filter_kabupaten = val_kab.get()
         filter_kecamatan = val_kec.get()
         filter_desa = val_desa.get()
         filter_bulan = input.pilih_bulan()
-        df_processed =  data_pus.filter(
-                pl.col("KABUPATEN").is_in(filter_kabupaten),
-                pl.col("KECAMATAN").is_in(filter_kecamatan),
-                pl.col("KELURAHAN").is_in(filter_desa),
-                pl.col("BULAN").is_in(bulan_hingga(filter_bulan))
-            ).group_by(
-                'PROVINSI', 'BULAN'
-            ).agg([
-                pl.col("PUS").sum()
-            ])
+        df_processed =  data_mix.filter(
+            pl.col("KABUPATEN").is_in(filter_kabupaten),
+            pl.col("KECAMATAN").is_in(filter_kecamatan),
+            pl.col("KELURAHAN").is_in(filter_desa),
+            pl.col("BULAN").is_in(bulan_hingga(filter_bulan))
+        ).group_by(
+            'PROVINSI', 'BULAN'
+        ).agg([
+            pl.col("PA").sum()
+        ])
 
         # Proses data dengan Polars
         df_processed = (
@@ -1435,12 +1572,12 @@ def server(input, output, session):
                 .alias("month_order")
             )
             .with_columns(
-                pl.col("PUS")
+                pl.col("PA")
                 .map_elements(
                     lambda x: f"{x:,}".replace(",", "."),
                     return_dtype=pl.Utf8
                 )
-                .alias("JUMLAH PUS")
+                .alias("JUMLAH PA")
             )
             .sort("month_order")
             .drop("month_order")
@@ -1451,12 +1588,13 @@ def server(input, output, session):
         last_month = df_processed["BULAN"][-1]
 
         # Hitung batas y-axis
-        y_min = df_processed["PUS"].min() * 0.95
-        y_max = df_processed["PUS"].max() * 1.05
+        y_min = df_processed["PA"].min() * 0.95
+        y_max = df_processed["PA"].max() * 1.05
 
         # === Base Chart ===
         base = alt.Chart(df_processed).mark_line(
-            point=alt.OverlayMarkDef(size=200, filled=True, fillOpacity=1, color='#3498db')
+            color=warna_kuning,
+            point=alt.OverlayMarkDef(size=200, filled=True, fillOpacity=1, color=warna_kuning)
         ).encode(
             x=alt.X('BULAN:N', 
                     sort=list(month_order.keys()),
@@ -1466,14 +1604,14 @@ def server(input, output, session):
                         labelOverlap="parity",
                         labelExpr="slice(datum.label, 0, 3)"  # Ambil 3 huruf pertama
                     )),
-            y=alt.Y('PUS:Q',
+            y=alt.Y('PA:Q',
                     scale=alt.Scale(domain=(y_min, y_max)),
                     axis=alt.Axis(
                         labelExpr='replace(format(datum.value, ",.0f"), ",", ".")', 
-                        title='JUMLAH PUS',
+                        title='JUMLAH PA',
                         tickCount=5  # BATASI 5 TICK SAJA
                     )),
-            tooltip=[alt.Tooltip('BULAN:N'), alt.Tooltip('JUMLAH PUS:N')]
+            tooltip=[alt.Tooltip('BULAN:N'), alt.Tooltip('JUMLAH PA:N')]
         )
 
         # === Anotasi Label (Perubahan warna) ===
@@ -1482,13 +1620,13 @@ def server(input, output, session):
         ).mark_text(
             align='center', 
             dy=-25, 
-            fontSize=11, 
+            fontSize=12, 
             fontWeight='bold', 
-            color='#3498db'  # Sesuaikan dengan warna point
+            color=warna_biru
         ).encode(
             x=alt.X('BULAN:N', sort=list(month_order.keys())),
-            y=alt.Y('PUS:Q'),
-            text=alt.Text('JUMLAH PUS:N')
+            y=alt.Y('PA:Q'),
+            text=alt.Text('JUMLAH PA:N')
         )
 
         end_label = alt.Chart(df_processed).transform_filter(
@@ -1498,17 +1636,17 @@ def server(input, output, session):
             dy=-25, 
             fontSize=11, 
             fontWeight='bold', 
-            color='#3498db'  # Sesuaikan dengan warna point
+            color=warna_biru  # Sesuaikan dengan warna point
         ).encode(
             x=alt.X('BULAN:N', sort=list(month_order.keys())),
-            y=alt.Y('PUS:Q'),
-            text=alt.Text('JUMLAH PUS:N')
+            y=alt.Y('PA:Q'),
+            text=alt.Text('JUMLAH PA:N')
         )
 
-        # === Gabungkan Semua Elemen ===
+
         chart = alt.layer(base, start_label, end_label).properties(
             title=alt.TitleParams(
-                'Tren Jumlah PUS',
+                'Tren Jumlah PA',
                 anchor='middle',  # Judul rata kiri
                 offset=20
             ),
@@ -1535,21 +1673,22 @@ def server(input, output, session):
 
     @render_widget
     @reactive.event(input.action_button)
-    def tren_pa():
+    def tren_unmet_need():
         filter_kabupaten = val_kab.get()
         filter_kecamatan = val_kec.get()
         filter_desa = val_desa.get()
         filter_bulan = input.pilih_bulan()
-        df_processed =  data_pus.filter(
-                pl.col("KABUPATEN").is_in(filter_kabupaten),
-                pl.col("KECAMATAN").is_in(filter_kecamatan),
-                pl.col("KELURAHAN").is_in(filter_desa),
-                pl.col("BULAN").is_in(bulan_hingga(filter_bulan))
-            ).group_by(
-                'PROVINSI', 'BULAN'
-            ).agg([
-                pl.col("PUS").sum()
-            ])
+        df_processed = data_pus.filter(
+            pl.col("KABUPATEN").is_in(filter_kabupaten),
+            pl.col("KECAMATAN").is_in(filter_kecamatan),
+            pl.col("KELURAHAN").is_in(filter_desa),
+            pl.col("BULAN").is_in(bulan_hingga(filter_bulan))
+        ).group_by('PROVINSI', 'BULAN').agg([
+            pl.col("PUS").sum(),
+            pl.col("UNMET NEED").sum()
+        ]).with_columns(
+            ((pl.col("UNMET NEED") / pl.col("PUS"))* 100).round(2).alias('UNMET NEED')
+        )
 
         # Proses data dengan Polars
         df_processed = (
@@ -1561,14 +1700,6 @@ def server(input, output, session):
                 .cast(pl.Int32)
                 .alias("month_order")
             )
-            .with_columns(
-                pl.col("PUS")
-                .map_elements(
-                    lambda x: f"{x:,}".replace(",", "."),
-                    return_dtype=pl.Utf8
-                )
-                .alias("PUS_formatted")
-            )
             .sort("month_order")
             .drop("month_order")
         )
@@ -1578,12 +1709,18 @@ def server(input, output, session):
         last_month = df_processed["BULAN"][-1]
 
         # Hitung batas y-axis
-        y_min = df_processed["PUS"].min() * 0.95
-        y_max = df_processed["PUS"].max() * 1.05
+        y_min = df_processed["UNMET NEED"].min() * 0.95
+        y_max = df_processed["UNMET NEED"].max() * 1.05
+
+
+        # Format kolom persentase ke string dengan koma dan %
+        persentase_list = df_processed["UNMET NEED"].to_list()
+        persentase_format = [f"{x:.2f}".replace('.', ',') + '%' for x in persentase_list]
+        df_processed = df_processed.with_columns(pl.Series("UNMET NEED (%)", persentase_format))
 
         # === Base Chart ===
         base = alt.Chart(df_processed).mark_line(
-            point=alt.OverlayMarkDef(size=200, filled=True, fillOpacity=1, color='#3498db')
+            point=alt.OverlayMarkDef(size=200, filled=True, fillOpacity=1, color=warna_biru)
         ).encode(
             x=alt.X('BULAN:N', 
                     sort=list(month_order.keys()),
@@ -1593,13 +1730,14 @@ def server(input, output, session):
                         labelOverlap="parity",
                         labelExpr="slice(datum.label, 0, 3)"  # Ambil 3 huruf pertama
                     )),
-            y=alt.Y('PUS:Q',
+            y=alt.Y('UNMET NEED:Q',
                     scale=alt.Scale(domain=(y_min, y_max)),
                     axis=alt.Axis(
-                        labelExpr='replace(format(datum.value, ",.0f"), ",", ".")', 
-                        title='Jumlah PUS'
-                    )),
-            tooltip=[alt.Tooltip('BULAN:N'), alt.Tooltip('PUS_formatted:N')]
+                        title='PERSENTASE UNMET NEED',
+                        tickCount=3,  # BATASI 5 TICK SAJA
+                        )
+                    ),
+            tooltip=[alt.Tooltip('BULAN:N'), alt.Tooltip('UNMET NEED (%):N')]
         )
 
         # === Anotasi Label (Perubahan warna) ===
@@ -1608,13 +1746,13 @@ def server(input, output, session):
         ).mark_text(
             align='center', 
             dy=-25, 
-            fontSize=14, 
+            fontSize=11, 
             fontWeight='bold', 
-            color='#3498db'  # Sesuaikan dengan warna point
+            color=warna_kuning  # Sesuaikan dengan warna point
         ).encode(
             x=alt.X('BULAN:N', sort=list(month_order.keys())),
-            y=alt.Y('PUS:Q'),
-            text=alt.Text('PUS_formatted:N')
+            y=alt.Y('UNMET NEED:Q'),
+            text=alt.Text('UNMET NEED (%):N')
         )
 
         end_label = alt.Chart(df_processed).transform_filter(
@@ -1622,18 +1760,24 @@ def server(input, output, session):
         ).mark_text(
             align='center', 
             dy=-25, 
-            fontSize=14, 
+            fontSize=11, 
             fontWeight='bold', 
-            color='#3498db'  # Sesuaikan dengan warna point
+            color=warna_kuning  # Sesuaikan dengan warna point
         ).encode(
             x=alt.X('BULAN:N', sort=list(month_order.keys())),
-            y=alt.Y('PUS:Q'),
-            text=alt.Text('PUS_formatted:N')
+            y=alt.Y('UNMET NEED:Q'),
+            text=alt.Text('UNMET NEED (%):N')
         )
 
-        # === Gabungkan Semua Elemen ===
+
         chart = alt.layer(base, start_label, end_label).properties(
-            title='Tren Jumlah PUS di Sulawesi Barat'
+            title=alt.TitleParams(
+                'Tren Persentase Unmet Need',
+                anchor='middle',  # Judul rata kiri
+                offset=20
+            ),
+            width='container',  # Lebar menyesuaikan layar
+            height='container'
         ).configure_view(
             strokeWidth=0
         ).configure_axis(
@@ -1641,83 +1785,14 @@ def server(input, output, session):
             labelFontSize=12,
             titleFontSize=14
         ).configure(
-            padding=20,
-            background='#f6f8fa'
-        )
-
-        return chart
-
-    @render_widget
-    @reactive.event(input.action_button)
-    def tren_unmet_need():
-        filter_kabupaten = val_kab.get()
-        filter_kecamatan = val_kec.get()
-        filter_desa = val_desa.get()
-        filter_bulan = input.pilih_bulan()
-        aggregated =  data_pus.filter(
-                pl.col("KABUPATEN").is_in(filter_kabupaten),
-                pl.col("KECAMATAN").is_in(filter_kecamatan),
-                pl.col("KELURAHAN").is_in(filter_desa),
-                pl.col("BULAN").is_in(bulan_hingga(filter_bulan))
-            ).group_by(
-                'PROVINSI', 'BULAN'
-            ).agg([
-                pl.col("PUS").sum()
-            ])
-
-        # Proses data dengan Polars
-        df_processed = (
-            aggregated
-            .with_columns(
-                pl.col("BULAN").replace(month_order).alias("month_order"),
-                # Format angka dengan pemisah titik (.) untuk tooltip
-                pl.col("PUS").map_elements(
-                    lambda x: f"{x:,}".replace(",", "."),
-                    return_dtype=pl.Utf8
-                ).alias("PUS_formatted")
+            padding={"left": 0, "right": 0, "top": 20, "bottom": 0},  # Sesuaikan padding
+            background='#f6f8fa',
+            autosize=alt.AutoSizeParams(
+                type='fit',
+                contains='padding'
             )
-            .sort("month_order")
-        )
-
-        # Hitung batas y-axis
-        min_value = df_processed["PUS"].min()
-        max_value = df_processed["PUS"].max()
-        y_min = min_value - (min_value * 0.001)
-        y_max = max_value + (max_value * 0.001)
-
-        # Konversi ke Pandas untuk Altair
-        df_for_viz = df_processed.to_pandas()
-
-        # Buat grafik
-        chart = alt.Chart(df_for_viz).mark_line(point=True).encode(
-            x=alt.X('BULAN:N', 
-                    sort=list(month_order.keys()),
-                    axis=alt.Axis(
-                        labelAngle=0,  # Label horizontal
-                        labelLimit=150,  # Batas lebar label sebelum otomatis rotate
-                        labelOverlap="parity"  # Hindari tumpang tindih
-                    )),
-            y=alt.Y('PUS:Q',
-                    scale=alt.Scale(domain=(y_min, y_max), nice=False),
-                    axis=alt.Axis(
-                        labelExpr='replace(format(datum.value, ",.0f"), ",", ".")',
-                        title='Jumlah PUS'
-                    )),
-            tooltip=[
-                alt.Tooltip('BULAN:N', title='Bulan'),
-                alt.Tooltip('PUS_formatted:N', title='Jumlah PUS')
-            ]
-        ).properties(
-            title='Tren Jumlah PUS di Sulawesi Barat'
-        ).configure_view(
-            strokeWidth=0
-        ).configure_axis(
-            grid=False
-        ).configure_point(
-            size=100
-        ).configure(
-            padding=20,  # Tambah padding
-            background='#f6f8fa'  # Warna background
+        ).configure_legend(
+            disable=True  # Hapus legenda jika tidak diperlukan
         )
 
         return chart
@@ -1729,70 +1804,125 @@ def server(input, output, session):
         filter_kecamatan = val_kec.get()
         filter_desa = val_desa.get()
         filter_bulan = input.pilih_bulan()
-        aggregated =  data_pus.filter(
-                pl.col("KABUPATEN").is_in(filter_kabupaten),
-                pl.col("KECAMATAN").is_in(filter_kecamatan),
-                pl.col("KELURAHAN").is_in(filter_desa),
-                pl.col("BULAN").is_in(bulan_hingga(filter_bulan))
-            ).group_by(
-                'PROVINSI', 'BULAN'
-            ).agg([
-                pl.col("PUS").sum()
-            ])
+
+        df_processed = data_mix.filter(
+            pl.col("KABUPATEN").is_in(filter_kabupaten),
+            pl.col("KECAMATAN").is_in(filter_kecamatan),
+            pl.col("KELURAHAN").is_in(filter_desa),
+            pl.col("BULAN").is_in(bulan_hingga(filter_bulan))
+        ).group_by('PROVINSI', "BULAN").agg([
+            pl.col("IMPLAN").sum(),
+            pl.col("IUD").sum(),
+            pl.col("VASEKTOMI").sum(),
+            pl.col("TUBEKTOMI").sum(),
+            pl.col("KB MODERN").sum()
+        ]).with_columns(
+            (((pl.col("IUD") + pl.col("IMPLAN") + pl.col("VASEKTOMI") + pl.col("TUBEKTOMI")) / pl.col("KB MODERN"))* 100).round(2).alias('MKJP')
+        )
 
         # Proses data dengan Polars
         df_processed = (
-            aggregated
+            df_processed
             .with_columns(
-                pl.col("BULAN").replace(month_order).alias("month_order"),
-                # Format angka dengan pemisah titik (.) untuk tooltip
-                pl.col("PUS").map_elements(
-                    lambda x: f"{x:,}".replace(",", "."),
-                    return_dtype=pl.Utf8
-                ).alias("PUS_formatted")
+                # Konversi bulan ke numerik
+                pl.col("BULAN")
+                .replace(month_order)
+                .cast(pl.Int32)
+                .alias("month_order")
             )
             .sort("month_order")
+            .drop("month_order")
         )
 
+        # Ambil bulan pertama dan terakhir
+        first_month = df_processed["BULAN"][0]
+        last_month = df_processed["BULAN"][-1]
+
         # Hitung batas y-axis
-        min_value = df_processed["PUS"].min()
-        max_value = df_processed["PUS"].max()
-        y_min = min_value - (min_value * 0.001)
-        y_max = max_value + (max_value * 0.001)
+        y_min = df_processed["MKJP"].min() * 0.95
+        y_max = df_processed["MKJP"].max() * 1.05
 
-        # Konversi ke Pandas untuk Altair
-        df_for_viz = df_processed.to_pandas()
+        # Format kolom persentase ke string dengan koma dan %
+        persentase_list = df_processed["MKJP"].to_list()
+        persentase_format = [f"{x:.2f}".replace('.', ',') + '%' for x in persentase_list]
+        df_processed = df_processed.with_columns(pl.Series("PERSENTASE_FORMAT", persentase_format))
 
-        # Buat grafik
-        chart = alt.Chart(df_for_viz).mark_line(point=True).encode(
+        # === Base Chart ===
+        base = alt.Chart(df_processed).mark_line(
+            color=warna_kuning,
+            point=alt.OverlayMarkDef(size=200, filled=True, fillOpacity=1, color=warna_kuning)
+        ).encode(
             x=alt.X('BULAN:N', 
                     sort=list(month_order.keys()),
                     axis=alt.Axis(
-                        labelAngle=0,  # Label horizontal
-                        labelLimit=150,  # Batas lebar label sebelum otomatis rotate
-                        labelOverlap="parity"  # Hindari tumpang tindih
+                        labelAngle=0, 
+                        labelLimit=200, 
+                        labelOverlap="parity",
+                        labelExpr="slice(datum.label, 0, 3)"  # Ambil 3 huruf pertama
                     )),
-            y=alt.Y('PUS:Q',
-                    scale=alt.Scale(domain=(y_min, y_max), nice=False),
+            y=alt.Y('MKJP:Q',
+                    scale=alt.Scale(domain=(y_min, y_max)),
                     axis=alt.Axis(
-                        labelExpr='replace(format(datum.value, ",.0f"), ",", ".")',
-                        title='Jumlah PUS'
-                    )),
-            tooltip=[
-                alt.Tooltip('BULAN:N', title='Bulan'),
-                alt.Tooltip('PUS_formatted:N', title='Jumlah PUS')
-            ]
-        ).properties(
-            title='Tren Jumlah PUS di Sulawesi Barat'
+                        title='PERSENTASE MKJP',
+                        tickCount=3,  # BATASI 5 TICK SAJA
+                        )
+                    ),
+            tooltip=[alt.Tooltip('BULAN:N'), alt.Tooltip('PERSENTASE_FORMAT:N', title='PERSENTASE')]
+        )
+
+        # === Anotasi Label (Perubahan warna) ===
+        start_label = alt.Chart(df_processed).transform_filter(
+            alt.datum.BULAN == first_month
+        ).mark_text(
+            align='center', 
+            dy=-25, 
+            fontSize=11, 
+            fontWeight='bold', 
+            color=warna_biru  # Sesuaikan dengan warna point
+        ).encode(
+            x=alt.X('BULAN:N', sort=list(month_order.keys())),
+            y=alt.Y('MKJP:Q'),
+            text=alt.Text('PERSENTASE_FORMAT:N', title='PERSENTASE')
+        )
+
+        end_label = alt.Chart(df_processed).transform_filter(
+            alt.datum.BULAN == last_month
+        ).mark_text(
+            align='center', 
+            dy=-25, 
+            fontSize=11, 
+            fontWeight='bold', 
+            color=warna_biru  # Sesuaikan dengan warna point
+        ).encode(
+            x=alt.X('BULAN:N', sort=list(month_order.keys())),
+            y=alt.Y('MKJP:Q'),
+            text=alt.Text('PERSENTASE_FORMAT:N', title='PERSENTASE')
+        )
+
+
+        chart = alt.layer(base, start_label, end_label).properties(
+            title=alt.TitleParams(
+                'Tren Persentase MKJP',
+                anchor='middle',  # Judul rata kiri
+                offset=20
+            ),
+            width='container',  # Lebar menyesuaikan layar
+            height='container'
         ).configure_view(
             strokeWidth=0
         ).configure_axis(
-            grid=False
-        ).configure_point(
-            size=100
+            grid=False,
+            labelFontSize=12,
+            titleFontSize=14
         ).configure(
-            padding=20,  # Tambah padding
-            background='#f6f8fa'  # Warna background
+            padding={"left": 0, "right": 0, "top": 20, "bottom": 0},  # Sesuaikan padding
+            background='#f6f8fa',
+            autosize=alt.AutoSizeParams(
+                type='fit',
+                contains='padding'
+            )
+        ).configure_legend(
+            disable=True  # Hapus legenda jika tidak diperlukan
         )
 
         return chart
@@ -1804,72 +1934,106 @@ def server(input, output, session):
         filter_kecamatan = val_kec.get()
         filter_desa = val_desa.get()
         filter_bulan = input.pilih_bulan()
-        aggregated =  data_pus.filter(
-                pl.col("KABUPATEN").is_in(filter_kabupaten),
-                pl.col("KECAMATAN").is_in(filter_kecamatan),
-                pl.col("KELURAHAN").is_in(filter_desa),
-                pl.col("BULAN").is_in(bulan_hingga(filter_bulan))
-            ).group_by(
-                'PROVINSI', 'BULAN'
-            ).agg([
-                pl.col("PUS").sum()
-            ])
+        mix_kontra = data_mix.filter(
+            pl.col("KABUPATEN").is_in(filter_kabupaten),
+            pl.col("KECAMATAN").is_in(filter_kecamatan),
+            pl.col("KELURAHAN").is_in(filter_desa),
+            pl.col("BULAN").is_in([filter_bulan])
+        ).group_by('PROVINSI').agg([
+            pl.col("SUNTIK").sum(),
+            pl.col("PIL").sum(),
+            pl.col("KONDOM").sum(),
+            pl.col("MAL").sum(),
+            pl.col("IMPLAN").sum(),
+            pl.col("IUD").sum(),
+            pl.col("VASEKTOMI").sum(),
+            pl.col("TUBEKTOMI").sum()
+        ])
 
-        # Proses data dengan Polars
-        df_processed = (
-            aggregated
-            .with_columns(
-                pl.col("BULAN").replace(month_order).alias("month_order"),
-                # Format angka dengan pemisah titik (.) untuk tooltip
-                pl.col("PUS").map_elements(
-                    lambda x: f"{x:,}".replace(",", "."),
-                    return_dtype=pl.Utf8
-                ).alias("PUS_formatted")
+        # Ubah data menjadi format "long" menggunakan `unpivot`
+        mix_kontra = mix_kontra.unpivot(
+            index="PROVINSI",  # Kolom yang tetap
+            on=["SUNTIK", "PIL", "KONDOM", "MAL", "IMPLAN", "IUD", "VASEKTOMI", "TUBEKTOMI"],  # Kolom yang di-unpivot
+            variable_name="METODE_KB",  # Nama kolom untuk metode KB
+            value_name="JUMLAH"  # Nama kolom untuk jumlah pengguna
+        )
+
+        # Urutkan data berdasarkan jumlah pengguna (terbesar ke terkecil)
+        mix_kontra = mix_kontra.sort("JUMLAH", descending=True)
+
+        # Menghitung total jumlah pengguna
+        total_jumlah = mix_kontra["JUMLAH"].sum()
+
+        # Menambahkan kolom persentase (dengan 2 angka desimal)
+        mix_kontra = mix_kontra.with_columns(
+            (pl.col("JUMLAH") / total_jumlah * 100).round(2).alias("PERSENTASE"),
+            # Format angka dengan pemisah titik (.) untuk tooltip
+            pl.col("JUMLAH").map_elements(
+                lambda x: f"{x:,}".replace(",", "."),
+                return_dtype=pl.Utf8
+            ).alias("JUMLAH FORMATTED")
+        )
+
+        # Format kolom persentase ke string dengan koma dan %
+        persentase_list = mix_kontra["PERSENTASE"].to_list()
+        persentase_format = [f"{x:.2f}".replace('.', ',') + '%' for x in persentase_list]
+        mix_kontra = mix_kontra.with_columns(pl.Series("PERSENTASE_FORMAT", persentase_format))
+
+        # Mengurutkan data berdasarkan jumlah secara descending
+        mix_kontra = mix_kontra.sort("JUMLAH", descending=True)
+
+        # Konversi ke Pandas DataFrame
+      #  sorted_df = sorted_data.to_pandas()
+
+        # Membuat grafik batang horizontal dengan Altair
+        chart = (
+            alt.Chart(mix_kontra)
+            .mark_bar(color=warna_biru)
+            .encode(
+                y=alt.Y("METODE_KB:N", title="Metode KB", sort="-x"),
+                x=alt.X("JUMLAH:Q", title="Jumlah Pengguna",
+                        axis=alt.Axis(
+                        tickCount=3,  # BATASI 5 TICK SAJA
+                        )),
+                tooltip=[
+                    alt.Tooltip("METODE_KB", title="Metode KB"),
+                    alt.Tooltip("JUMLAH FORMATTED:Q", title="Jumlah"),
+                    alt.Tooltip("PERSENTASE_FORMAT:N", title="Persentase")
+                ]
             )
-            .sort("month_order")
         )
 
-        # Hitung batas y-axis
-        min_value = df_processed["PUS"].min()
-        max_value = df_processed["PUS"].max()
-        y_min = min_value - (min_value * 0.001)
-        y_max = max_value + (max_value * 0.001)
-
-        # Konversi ke Pandas untuk Altair
-        df_for_viz = df_processed.to_pandas()
-
-        # Buat grafik
-        chart = alt.Chart(df_for_viz).mark_line(point=True).encode(
-            x=alt.X('BULAN:N', 
-                    sort=list(month_order.keys()),
-                    axis=alt.Axis(
-                        labelAngle=0,  # Label horizontal
-                        labelLimit=150,  # Batas lebar label sebelum otomatis rotate
-                        labelOverlap="parity"  # Hindari tumpang tindih
-                    )),
-            y=alt.Y('PUS:Q',
-                    scale=alt.Scale(domain=(y_min, y_max), nice=False),
-                    axis=alt.Axis(
-                        labelExpr='replace(format(datum.value, ",.0f"), ",", ".")',
-                        title='Jumlah PUS'
-                    )),
-            tooltip=[
-                alt.Tooltip('BULAN:N', title='Bulan'),
-                alt.Tooltip('PUS_formatted:N', title='Jumlah PUS')
-            ]
-        ).properties(
-            title='Tren Jumlah PUS di Sulawesi Barat'
-        ).configure_view(
-            strokeWidth=0
-        ).configure_axis(
-            grid=False
-        ).configure_point(
-            size=100
-        ).configure(
-            padding=20,  # Tambah padding
-            background='#f6f8fa'  # Warna background
+        # Menambahkan label di ujung batang
+        text = (
+            alt.Chart(mix_kontra)
+            .mark_text(align="left", baseline="middle", dx=5)
+            .encode(
+                y=alt.Y("METODE_KB:N", sort="-x"),
+                x=alt.X("JUMLAH:Q"),
+                text="JUMLAH FORMATTED:Q"
+            )
         )
 
+        chart = alt.layer(chart, text).properties(
+                width='container',
+                height='container',
+                title="Perbandingan Pengguna Metode KB"
+            ).configure_view(
+                strokeWidth=0
+            ).configure_axis(
+                grid=False,
+                labelFontSize=12,
+                titleFontSize=14
+            ).configure(
+                padding={"left": 0, "right": 3, "top": 20, "bottom": 0},  # Sesuaikan padding
+                background='#f6f8fa',
+                autosize=alt.AutoSizeParams(
+                    type='fit',
+                    contains='padding'
+                )
+            ).configure_legend(
+                disable=True  # Hapus legenda jika tidak diperlukan
+            )
         return chart
     
     @render_widget
@@ -1879,89 +2043,97 @@ def server(input, output, session):
         filter_kecamatan = val_kec.get()
         filter_desa = val_desa.get()
         filter_bulan = input.pilih_bulan()
-        aggregated =  data_pus.filter(
-                pl.col("KABUPATEN").is_in(filter_kabupaten),
-                pl.col("KECAMATAN").is_in(filter_kecamatan),
-                pl.col("KELURAHAN").is_in(filter_desa),
-                pl.col("BULAN").is_in(bulan_hingga(filter_bulan))
-            ).group_by(
-                'PROVINSI', 'BULAN'
-            ).agg([
-                pl.col("PUS").sum()
-            ])
-
-        # Proses data dengan Polars
-        df_processed = (
-            aggregated
-            .with_columns(
-                pl.col("BULAN").replace(month_order).alias("month_order"),
-                # Format angka dengan pemisah titik (.) untuk tooltip
-                pl.col("PUS").map_elements(
-                    lambda x: f"{x:,}".replace(",", "."),
-                    return_dtype=pl.Utf8
-                ).alias("PUS_formatted")
-            )
-            .sort("month_order")
+        # Klasifikasi tenaga kerja berdasarkan kolom PELATIHAN
+        data_with_classification = faskes_sdm.with_columns(
+            pl.when(
+                pl.col("PELATIHAN").str.contains("(?i)IUD|Implan|Tubektomi|Vasektomi")
+            ).then(pl.lit("Sudah Terlatih")).otherwise(pl.lit("Belum Terlatih")).alias("KLASIFIKASI")
         )
 
-        # Hitung batas y-axis
-        min_value = df_processed["PUS"].min()
-        max_value = df_processed["PUS"].max()
-        y_min = min_value - (min_value * 0.001)
-        y_max = max_value + (max_value * 0.001)
+        # Hitung jumlah tenaga kerja untuk setiap klasifikasi
+        summary_data = data_with_classification.group_by("KLASIFIKASI").agg(
+            pl.len().alias("count")  # Menggunakan .len() sebagai pengganti .count()
+        )
 
-        # Konversi ke Pandas untuk Altair
-        df_for_viz = df_processed.to_pandas()
+        # Tambahkan kolom persentase
+        total_count = summary_data["count"].sum()
+        summary_data = summary_data.with_columns(
+            (pl.col("count") / total_count * 100).round(2).alias("PERSENTASE")
+        )
 
-        # Buat grafik
-        chart = alt.Chart(df_for_viz).mark_line(point=True).encode(
-            x=alt.X('BULAN:N', 
-                    sort=list(month_order.keys()),
-                    axis=alt.Axis(
-                        labelAngle=0,  # Label horizontal
-                        labelLimit=150,  # Batas lebar label sebelum otomatis rotate
-                        labelOverlap="parity"  # Hindari tumpang tindih
-                    )),
-            y=alt.Y('PUS:Q',
-                    scale=alt.Scale(domain=(y_min, y_max), nice=False),
-                    axis=alt.Axis(
-                        labelExpr='replace(format(datum.value, ",.0f"), ",", ".")',
-                        title='Jumlah PUS'
-                    )),
+        # Format kolom persentase ke string dengan koma dan %
+        persentase_list = summary_data["PERSENTASE"].to_list()
+        persentase_format = [f"{x:.2f}".replace('.', ',') + '%' for x in persentase_list]
+        summary_data = summary_data.with_columns(pl.Series("PERSENTASE_FORMAT", persentase_format))
+
+        # Definisi warna
+        color_scale = alt.Scale(
+            domain=["Sudah Terlatih", "Belum Terlatih"],
+            range=[warna_biru, warna_kuning]  # Biru untuk Sudah Terlatih, Kuning untuk Belum
+        )
+
+        # Tambahkan kolom gabungan klasifikasi dan persentase
+        summary_data = summary_data.with_columns(
+            (pl.col("KLASIFIKASI") + "\n" + pl.col("PERSENTASE_FORMAT")).alias("LABEL")
+        )
+
+        # Basis chart
+        base = alt.Chart(summary_data).encode(
+            theta=alt.Theta("count:Q", stack=True),
+            color=alt.Color("KLASIFIKASI:N", scale=color_scale, legend=None),
             tooltip=[
-                alt.Tooltip('BULAN:N', title='Bulan'),
-                alt.Tooltip('PUS_formatted:N', title='Jumlah PUS')
+                alt.Tooltip("KLASIFIKASI:N", title="Status"),
+                alt.Tooltip("count:Q", title="Jumlah"),
+                alt.Tooltip("PERSENTASE_FORMAT:N", title="Persentase")
             ]
         ).properties(
-            title='Tren Jumlah PUS di Sulawesi Barat'
+            width='container',
+            height='container',
+            title="Proporsi Klasifikasi Pelatihan"
+        )
+
+        # Arc (donut)
+        arc = base.mark_arc(
+            outerRadius=150,
+            innerRadius=80
+        )
+
+        # Label di luar donut dengan dua baris
+        text = base.mark_text(
+            radius=200,
+            fontSize=11,
+            align="center",
+            baseline="bottom",
+            lineBreak="\n"  # Pemisah baris
+        ).encode(
+            text="LABEL:N"  # Kolom gabungan
+        )
+
+        # Gabungkan grafik
+        chart = (arc + text).configure_view(
+            strokeWidth=0
         ).configure_view(
             strokeWidth=0
         ).configure_axis(
-            grid=False
-        ).configure_point(
-            size=100
+            grid=False,
+            labelFontSize=12,
+            titleFontSize=14
         ).configure(
-            padding=20,  # Tambah padding
-            background='#f6f8fa'  # Warna background
+            padding={"left": 10, "right": 10, "top": 20, "bottom": 0},  # Sesuaikan padding
+            background='#f6f8fa',
+            autosize=alt.AutoSizeParams(
+                type='fit',
+                contains='padding'
+            )
+        ).configure_legend(
+            disable=True  # Hapus legenda jika tidak diperlukan
         )
 
         return chart
     ### akhir KB
 
-    ###progress
-    @render.text
-    @reactive.event(input.button)
-    async def compute():
-        with ui.Progress(min=1, max=15) as p:
-            p.set(message="Calculation in progress", detail="This may take a while...")
-
-            for i in range(1, 5):
-                p.set(i, message="Computing")
-                await asyncio.sleep(1)
-                # Normally use time.sleep() instead, but it doesn't yet work in Pyodide.
-                # https://github.com/pyodide/pyodide/issues/2354
-
-        return "Done computing!"
+    ### eksplore
+    ### esplore
 
 www_dir = Path(__file__).parent / "www"
 app = App(app_ui, server, static_assets=www_dir)
