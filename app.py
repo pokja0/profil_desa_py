@@ -306,12 +306,7 @@ app_ui = ui.page_navbar(
                     class_="custom-grid"  # Class CSS untuk grid
                 ),
                 ui.layout_column_wrap(
-                    ui.card(
-                        output_widget("grafik_piramida")
-                    ),
-                    ui.card(
-                        ui.output_data_frame("tabel_piramida")
-                    )
+
                 ),
                 # ui.layout_column_wrap(
                 #     ui.card(
@@ -1182,226 +1177,226 @@ def server(input, output, session):
         })
         return GT(results)
     
-    @render_widget
-    @reactive.event(input.action_button)
-    def grafik_piramida():
-        filter_kabupaten = val_kab.get()
-        filter_kecamatan = val_kec.get()
-        filter_desa = val_desa.get()
+    # @render_widget
+    # @reactive.event(input.action_button)
+    # def grafik_piramida():
+    #     filter_kabupaten = val_kab.get()
+    #     filter_kecamatan = val_kec.get()
+    #     filter_desa = val_desa.get()
         
-        kelompok_umur_lk = pl.read_csv('data/PIRAMIDA PENDUDUK - Laki-laki.csv')
-        kelompok_umur_lk = kelompok_umur_lk.filter(pl.col("KABUPATEN").is_in(filter_kabupaten),
-                                    pl.col("KECAMATAN").is_in(filter_kecamatan),
-                                    pl.col("KELURAHAN").is_in(filter_desa))
-        # Mendefinisikan range kolom yang akan dijumlahkan
-        columns_to_sum = [kelompok_umur_lk.columns[i] for i in range(6, 23)]
+    #     kelompok_umur_lk = pl.read_csv('data/PIRAMIDA PENDUDUK - Laki-laki.csv')
+    #     kelompok_umur_lk = kelompok_umur_lk.filter(pl.col("KABUPATEN").is_in(filter_kabupaten),
+    #                                 pl.col("KECAMATAN").is_in(filter_kecamatan),
+    #                                 pl.col("KELURAHAN").is_in(filter_desa))
+    #     # Mendefinisikan range kolom yang akan dijumlahkan
+    #     columns_to_sum = [kelompok_umur_lk.columns[i] for i in range(6, 23)]
 
-        # Membuat daftar agregasi
-        aggregations = [pl.sum(col) for col in columns_to_sum]
+    #     # Membuat daftar agregasi
+    #     aggregations = [pl.sum(col) for col in columns_to_sum]
 
-        # Melakukan pengelompokan dan agregasi
-        result = kelompok_umur_lk.group_by("PROVINSI").agg(aggregations)
+    #     # Melakukan pengelompokan dan agregasi
+    #     result = kelompok_umur_lk.group_by("PROVINSI").agg(aggregations)
 
-        # Asumsi bahwa 'result' adalah DataFrame yang dihasilkan dari kode sebelumnya
-        columns_to_melt = [col for col in result.columns if col != "PROVINSI"]
+    #     # Asumsi bahwa 'result' adalah DataFrame yang dihasilkan dari kode sebelumnya
+    #     columns_to_melt = [col for col in result.columns if col != "PROVINSI"]
 
-        # Melakukan melt pada DataFrame
-        melted_result_lk = result.melt(
-            id_vars=["PROVINSI"], 
-            value_vars=columns_to_melt, 
-            variable_name="Age_Group", 
-            value_name="Laki-laki"
-        )
+    #     # Melakukan melt pada DataFrame
+    #     melted_result_lk = result.melt(
+    #         id_vars=["PROVINSI"], 
+    #         value_vars=columns_to_melt, 
+    #         variable_name="Age_Group", 
+    #         value_name="Laki-laki"
+    #     )
 
-        kelompok_umur_pr = pl.read_csv('data/PIRAMIDA PENDUDUK - Perempuan.csv')
-        kelompok_umur_pr = kelompok_umur_pr.filter(pl.col("KABUPATEN").is_in(filter_kabupaten),
-                            pl.col("KECAMATAN").is_in(filter_kecamatan),
-                            pl.col("KELURAHAN").is_in(filter_desa))
-        # Mendefinisikan range kolom yang akan dijumlahkan
-        columns_to_sum = [kelompok_umur_pr.columns[i] for i in range(6, 23)]
+    #     kelompok_umur_pr = pl.read_csv('data/PIRAMIDA PENDUDUK - Perempuan.csv')
+    #     kelompok_umur_pr = kelompok_umur_pr.filter(pl.col("KABUPATEN").is_in(filter_kabupaten),
+    #                         pl.col("KECAMATAN").is_in(filter_kecamatan),
+    #                         pl.col("KELURAHAN").is_in(filter_desa))
+    #     # Mendefinisikan range kolom yang akan dijumlahkan
+    #     columns_to_sum = [kelompok_umur_pr.columns[i] for i in range(6, 23)]
 
-        # Membuat daftar agregasi
-        aggregations = [pl.sum(col) for col in columns_to_sum]
+    #     # Membuat daftar agregasi
+    #     aggregations = [pl.sum(col) for col in columns_to_sum]
 
-        # Melakukan pengelompokan dan agregasi
-        result = kelompok_umur_pr.group_by("PROVINSI").agg(aggregations)
+    #     # Melakukan pengelompokan dan agregasi
+    #     result = kelompok_umur_pr.group_by("PROVINSI").agg(aggregations)
 
-        # Asumsi bahwa 'result' adalah DataFrame yang dihasilkan dari kode sebelumnya
-        columns_to_melt = [col for col in result.columns if col != "PROVINSI"]
+    #     # Asumsi bahwa 'result' adalah DataFrame yang dihasilkan dari kode sebelumnya
+    #     columns_to_melt = [col for col in result.columns if col != "PROVINSI"]
 
-        # Melakukan melt pada DataFrame
-        melted_result_pr = result.melt(
-            id_vars=["PROVINSI"], 
-            value_vars=columns_to_melt, 
-            variable_name="Age_Group", 
-            value_name="Perempuan"
-        )
+    #     # Melakukan melt pada DataFrame
+    #     melted_result_pr = result.melt(
+    #         id_vars=["PROVINSI"], 
+    #         value_vars=columns_to_melt, 
+    #         variable_name="Age_Group", 
+    #         value_name="Perempuan"
+    #     )
 
-        df_horizontal_join = melted_result_pr.join(melted_result_lk, on="Age_Group", how="inner")
+    #     df_horizontal_join = melted_result_pr.join(melted_result_lk, on="Age_Group", how="inner")
 
-        # Daftar kategori usia
-        ku = ["0 - 1", "2 - 4", "5 - 9", "10 - 14", "15 - 19", 
-            "20 - 24", "25 - 29", "30 - 34", "35 - 39", "40 - 44", 
-            "45 - 49", "50 - 54", "55 - 59", "60 - 64", 
-            "65 - 69", "70 - 74", "75+"]
+    #     # Daftar kategori usia
+    #     ku = ["0 - 1", "2 - 4", "5 - 9", "10 - 14", "15 - 19", 
+    #         "20 - 24", "25 - 29", "30 - 34", "35 - 39", "40 - 44", 
+    #         "45 - 49", "50 - 54", "55 - 59", "60 - 64", 
+    #         "65 - 69", "70 - 74", "75+"]
 
-        # Menghitung berapa kali daftar ku perlu diulang
-        repeat_count = df_horizontal_join.shape[0] // len(ku) + 1
-        repeated_ku = (ku * repeat_count)[:df_horizontal_join.shape[0]]
+    #     # Menghitung berapa kali daftar ku perlu diulang
+    #     repeat_count = df_horizontal_join.shape[0] // len(ku) + 1
+    #     repeated_ku = (ku * repeat_count)[:df_horizontal_join.shape[0]]
 
-        # Menambahkan kolom kategori umur
-        df_horizontal_join = df_horizontal_join.with_columns([pl.Series(name="Kategori_Umur", values=repeated_ku)])
+    #     # Menambahkan kolom kategori umur
+    #     df_horizontal_join = df_horizontal_join.with_columns([pl.Series(name="Kategori_Umur", values=repeated_ku)])
 
-        y_age = df_horizontal_join['Kategori_Umur'] 
-        x_M = df_horizontal_join['Laki-laki'] 
-        x_F = df_horizontal_join['Perempuan'] * -1
+    #     y_age = df_horizontal_join['Kategori_Umur'] 
+    #     x_M = df_horizontal_join['Laki-laki'] 
+    #     x_F = df_horizontal_join['Perempuan'] * -1
 
-        if max(x_M) >= max(x_F):
-            maks = max(x_M)
-        else:
-            maks = max(x_F)
+    #     if max(x_M) >= max(x_F):
+    #         maks = max(x_M)
+    #     else:
+    #         maks = max(x_F)
 
-        def round_up_to_nearest(number, base):
-            return base * math.ceil(number / base)
+    #     def round_up_to_nearest(number, base):
+    #         return base * math.ceil(number / base)
 
-        def auto_round_up(number):
-            if number == 0:
-                return 0
-            base = 10 ** (len(str(number)) - 1)
-            return round_up_to_nearest(number, base)
+    #     def auto_round_up(number):
+    #         if number == 0:
+    #             return 0
+    #         base = 10 ** (len(str(number)) - 1)
+    #         return round_up_to_nearest(number, base)
 
-        maks1 = auto_round_up(maks)
-        maks2 = auto_round_up(int(maks - (maks * 1 / 3)))
-        maks3 = auto_round_up(int(maks - (maks * 2 / 3)))
+    #     maks1 = auto_round_up(maks)
+    #     maks2 = auto_round_up(int(maks - (maks * 1 / 3)))
+    #     maks3 = auto_round_up(int(maks - (maks * 2 / 3)))
 
-        tick_vals = [-maks1, -maks2, -maks3, 0, maks1, maks2, maks3]
-        tick_str = [str(abs(value)) for value in tick_vals]
+    #     tick_vals = [-maks1, -maks2, -maks3, 0, maks1, maks2, maks3]
+    #     tick_str = [str(abs(value)) for value in tick_vals]
 
-        import plotly.graph_objects as gp
-        # Creating instance of the figure 
-        fig = gp.Figure() 
+    #     import plotly.graph_objects as gp
+    #     # Creating instance of the figure 
+    #     fig = gp.Figure() 
         
 
-        # Adding Female data to the figure 
-        fig.add_trace(gp.Bar(y = y_age, x = x_F, 
-                            name = 'Perempuan', orientation = 'h',
-                            marker=dict(color='#ffc107'),
-                            hovertemplate='Perempuan Umur %{y}<br>Jumlah: %{customdata}<extra></extra>',
-                            customdata=[abs(x) for x in x_F]
-                            )) 
+    #     # Adding Female data to the figure 
+    #     fig.add_trace(gp.Bar(y = y_age, x = x_F, 
+    #                         name = 'Perempuan', orientation = 'h',
+    #                         marker=dict(color='#ffc107'),
+    #                         hovertemplate='Perempuan Umur %{y}<br>Jumlah: %{customdata}<extra></extra>',
+    #                         customdata=[abs(x) for x in x_F]
+    #                         )) 
 
-        # Adding Male data to the figure 
-        fig.add_trace(gp.Bar(y= y_age, x = x_M,  
-                            name = 'Laki-laki',  
-                            orientation = 'h',
-                            marker=dict(color='#0d6efd'),
-                            hovertemplate='Laki-laki Umur %{y}<br> %{x}<extra></extra>')) 
+    #     # Adding Male data to the figure 
+    #     fig.add_trace(gp.Bar(y= y_age, x = x_M,  
+    #                         name = 'Laki-laki',  
+    #                         orientation = 'h',
+    #                         marker=dict(color='#0d6efd'),
+    #                         hovertemplate='Laki-laki Umur %{y}<br> %{x}<extra></extra>')) 
 
         
-        # Updating the layout for our graph 
-        fig.update_layout(title={
-                            'text': 'Piramida Penduduk ' + str(val_judul.get()),
-                            'y': 0.98,  # Adjust this value to move the title up or down
-                            'x': 0.5,  # Centered horizontally
-                            'xanchor': 'center',
-                            'yanchor': 'top'
-                        },
-                        title_font_size = 18, barmode = 'relative', 
-                        bargap = 0.0, bargroupgap = 0, 
-                        xaxis = dict(tickvals = tick_vals, 
-                                    ticktext = tick_str, 
-                                    title = 'Jumlah', 
-                                    title_font_size = 14),
-                        legend=dict(
-                                orientation='h',
-                                yanchor='bottom',
-                                y=-0.3,  # Adjust this value to move the legend up or down
-                                xanchor='center',
-                                x=0.5
-                        ),
-                        plot_bgcolor='#f6f8fa',  # Set background color of the plot area to green
-                        paper_bgcolor='#f6f8fa'  # Set background color of the entire canvas to green 
-        )
+    #     # Updating the layout for our graph 
+    #     fig.update_layout(title={
+    #                         'text': 'Piramida Penduduk ' + str(val_judul.get()),
+    #                         'y': 0.98,  # Adjust this value to move the title up or down
+    #                         'x': 0.5,  # Centered horizontally
+    #                         'xanchor': 'center',
+    #                         'yanchor': 'top'
+    #                     },
+    #                     title_font_size = 18, barmode = 'relative', 
+    #                     bargap = 0.0, bargroupgap = 0, 
+    #                     xaxis = dict(tickvals = tick_vals, 
+    #                                 ticktext = tick_str, 
+    #                                 title = 'Jumlah', 
+    #                                 title_font_size = 14),
+    #                     legend=dict(
+    #                             orientation='h',
+    #                             yanchor='bottom',
+    #                             y=-0.3,  # Adjust this value to move the legend up or down
+    #                             xanchor='center',
+    #                             x=0.5
+    #                     ),
+    #                     plot_bgcolor='#f6f8fa',  # Set background color of the plot area to green
+    #                     paper_bgcolor='#f6f8fa'  # Set background color of the entire canvas to green 
+    #     )
         
-        return fig
+    #     return fig
 
-    @render.data_frame
-    @reactive.event(input.action_button)
-    def tabel_piramida():
-        filter_kabupaten = val_kab.get()
-        filter_kecamatan = val_kec.get()
-        filter_desa = val_desa.get()
+    # @render.data_frame
+    # @reactive.event(input.action_button)
+    # def tabel_piramida():
+    #     filter_kabupaten = val_kab.get()
+    #     filter_kecamatan = val_kec.get()
+    #     filter_desa = val_desa.get()
         
-        kelompok_umur_lk = pl.read_csv('data/PIRAMIDA PENDUDUK - Laki-laki.csv')
-        kelompok_umur_lk = kelompok_umur_lk.filter(pl.col("KABUPATEN").is_in(filter_kabupaten),
-                                    pl.col("KECAMATAN").is_in(filter_kecamatan),
-                                    pl.col("KELURAHAN").is_in(filter_desa))
-        # Mendefinisikan range kolom yang akan dijumlahkan
-        columns_to_sum = [kelompok_umur_lk.columns[i] for i in range(6, 23)]
+    #     kelompok_umur_lk = pl.read_csv('data/PIRAMIDA PENDUDUK - Laki-laki.csv')
+    #     kelompok_umur_lk = kelompok_umur_lk.filter(pl.col("KABUPATEN").is_in(filter_kabupaten),
+    #                                 pl.col("KECAMATAN").is_in(filter_kecamatan),
+    #                                 pl.col("KELURAHAN").is_in(filter_desa))
+    #     # Mendefinisikan range kolom yang akan dijumlahkan
+    #     columns_to_sum = [kelompok_umur_lk.columns[i] for i in range(6, 23)]
 
-        # Membuat daftar agregasi
-        aggregations = [pl.sum(col) for col in columns_to_sum]
+    #     # Membuat daftar agregasi
+    #     aggregations = [pl.sum(col) for col in columns_to_sum]
 
-        # Melakukan pengelompokan dan agregasi
-        result = kelompok_umur_lk.group_by("PROVINSI").agg(aggregations)
+    #     # Melakukan pengelompokan dan agregasi
+    #     result = kelompok_umur_lk.group_by("PROVINSI").agg(aggregations)
 
-        # Asumsi bahwa 'result' adalah DataFrame yang dihasilkan dari kode sebelumnya
-        columns_to_melt = [col for col in result.columns if col != "PROVINSI"]
+    #     # Asumsi bahwa 'result' adalah DataFrame yang dihasilkan dari kode sebelumnya
+    #     columns_to_melt = [col for col in result.columns if col != "PROVINSI"]
 
-        # Melakukan melt pada DataFrame
-        melted_result_lk = result.melt(
-            id_vars=["PROVINSI"], 
-            value_vars=columns_to_melt, 
-            variable_name="Age_Group", 
-            value_name="Laki-laki"
-        )
+    #     # Melakukan melt pada DataFrame
+    #     melted_result_lk = result.melt(
+    #         id_vars=["PROVINSI"], 
+    #         value_vars=columns_to_melt, 
+    #         variable_name="Age_Group", 
+    #         value_name="Laki-laki"
+    #     )
 
-        kelompok_umur_pr = pl.read_csv('data/PIRAMIDA PENDUDUK - Perempuan.csv')
-        kelompok_umur_pr = kelompok_umur_pr.filter(pl.col("KABUPATEN").is_in(filter_kabupaten),
-                            pl.col("KECAMATAN").is_in(filter_kecamatan),
-                            pl.col("KELURAHAN").is_in(filter_desa))
-        # Mendefinisikan range kolom yang akan dijumlahkan
-        columns_to_sum = [kelompok_umur_pr.columns[i] for i in range(6, 23)]
+    #     kelompok_umur_pr = pl.read_csv('data/PIRAMIDA PENDUDUK - Perempuan.csv')
+    #     kelompok_umur_pr = kelompok_umur_pr.filter(pl.col("KABUPATEN").is_in(filter_kabupaten),
+    #                         pl.col("KECAMATAN").is_in(filter_kecamatan),
+    #                         pl.col("KELURAHAN").is_in(filter_desa))
+    #     # Mendefinisikan range kolom yang akan dijumlahkan
+    #     columns_to_sum = [kelompok_umur_pr.columns[i] for i in range(6, 23)]
 
-        # Membuat daftar agregasi
-        aggregations = [pl.sum(col) for col in columns_to_sum]
+    #     # Membuat daftar agregasi
+    #     aggregations = [pl.sum(col) for col in columns_to_sum]
 
-        # Melakukan pengelompokan dan agregasi
-        result = kelompok_umur_pr.group_by("PROVINSI").agg(aggregations)
+    #     # Melakukan pengelompokan dan agregasi
+    #     result = kelompok_umur_pr.group_by("PROVINSI").agg(aggregations)
 
-        # Asumsi bahwa 'result' adalah DataFrame yang dihasilkan dari kode sebelumnya
-        columns_to_melt = [col for col in result.columns if col != "PROVINSI"]
+    #     # Asumsi bahwa 'result' adalah DataFrame yang dihasilkan dari kode sebelumnya
+    #     columns_to_melt = [col for col in result.columns if col != "PROVINSI"]
 
-        # Melakukan melt pada DataFrame
-        melted_result_pr = result.melt(
-            id_vars=["PROVINSI"], 
-            value_vars=columns_to_melt, 
-            variable_name="Age_Group", 
-            value_name="Perempuan"
-        )
+    #     # Melakukan melt pada DataFrame
+    #     melted_result_pr = result.melt(
+    #         id_vars=["PROVINSI"], 
+    #         value_vars=columns_to_melt, 
+    #         variable_name="Age_Group", 
+    #         value_name="Perempuan"
+    #     )
 
-        df_horizontal_join = melted_result_pr.join(melted_result_lk, on="Age_Group", how="inner")
+    #     df_horizontal_join = melted_result_pr.join(melted_result_lk, on="Age_Group", how="inner")
 
-        # Daftar kategori usia
-        ku = ["0 - 1", "2 - 4", "5 - 9", "10 - 14", "15 - 19", 
-            "20 - 24", "25 - 29", "30 - 34", "35 - 39", "40 - 44", 
-            "45 - 49", "50 - 54", "55 - 59", "60 - 64", 
-            "65 - 69", "70 - 74", "75+"]
+    #     # Daftar kategori usia
+    #     ku = ["0 - 1", "2 - 4", "5 - 9", "10 - 14", "15 - 19", 
+    #         "20 - 24", "25 - 29", "30 - 34", "35 - 39", "40 - 44", 
+    #         "45 - 49", "50 - 54", "55 - 59", "60 - 64", 
+    #         "65 - 69", "70 - 74", "75+"]
 
-        # Menghitung berapa kali daftar ku perlu diulang
-        repeat_count = df_horizontal_join.shape[0] // len(ku) + 1
-        repeated_ku = (ku * repeat_count)[:df_horizontal_join.shape[0]]
+    #     # Menghitung berapa kali daftar ku perlu diulang
+    #     repeat_count = df_horizontal_join.shape[0] // len(ku) + 1
+    #     repeated_ku = (ku * repeat_count)[:df_horizontal_join.shape[0]]
 
-        # Menambahkan kolom kategori umur
-        df_horizontal_join = df_horizontal_join.with_columns([pl.Series(name="Kategori_Umur", values=repeated_ku)])
-        df_horizontal_join = df_horizontal_join.select('Kategori_Umur', 'Perempuan', 'Laki-laki')
+    #     # Menambahkan kolom kategori umur
+    #     df_horizontal_join = df_horizontal_join.with_columns([pl.Series(name="Kategori_Umur", values=repeated_ku)])
+    #     df_horizontal_join = df_horizontal_join.select('Kategori_Umur', 'Perempuan', 'Laki-laki')
 
 
-        df_horizontal_join = df_horizontal_join.with_columns(
-            (pl.col("Perempuan") + pl.col("Laki-laki")).alias("Total")
-        )
-        return render.DataGrid(df_horizontal_join)
-    ### akhir profil
+    #     df_horizontal_join = df_horizontal_join.with_columns(
+    #         (pl.col("Perempuan") + pl.col("Laki-laki")).alias("Total")
+    #     )
+    #     return render.DataGrid(df_horizontal_join)
+    # ### akhir profil
 
     ### awal KB
     data_pus = pl.read_csv("data/data_pus.csv")
