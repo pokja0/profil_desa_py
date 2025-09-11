@@ -27,12 +27,10 @@ import asyncio
 from htmltools import head_content
 import altair as alt
 
-import pygwalker as pyg
-
 
 daftar_bulan = ["JANUARI", "FEBRUARI", "MARET", "APRIL", "MEI", "JUNI", "JULI", "AGUSTUS", "SEPTEMBER", "OKTOBER", "NOVEMBER", "DESEMBER"]
 
-data_poktan = pl.read_csv("data/profil_poktan.csv")
+data_poktan = pl.read_csv("data/profil_poktan.csv", separator=";")
 
 #data_poktan = pl.read_csv("data/profil_poktan.csv")
     
@@ -107,7 +105,7 @@ app_ui = ui.page_navbar(
             ui.input_selectize("pilih_kec", "Pilih Kecamatan", choices=[], multiple=False),
             ui.input_selectize("pilih_desa", "Pilih Desa/Kelurahan", choices=[], multiple=False),
             ui.input_selectize("pilih_bulan", "BULAN", 
-                                 choices=daftar_bulan[:2], selected="FEBRUARI")#,
+                                 choices=daftar_bulan[:8], selected="AGUSTUS")#,
             # ui.input_selectize("pilih_tahun", "TAHUN", 
             #                     choices=['2025', '2024'])                    
         ),
@@ -290,7 +288,7 @@ app_ui = ui.page_navbar(
                         )
                     )
             ),
-                        ui.nav_panel(
+            ui.nav_panel(
                 "Poktan",
                     # Container utama dengan CSS Grid
                 ui.div(
@@ -316,18 +314,66 @@ app_ui = ui.page_navbar(
             ),
             ui.nav_panel(
                 "Stunting",
-                "Otw"
+                ui.div(
+                    ui.layout_column_wrap(
+                        ui.value_box(
+                            "Jumlah Keluarga",
+                            ui.output_text("jumlah_keluarga"),
+                            theme=ui.ValueBoxTheme(class_="", bg = "#f6f8fa", fg = "#0B538E"),
+                            showcase= faicons.icon_svg("child-reaching"),
+                            class_="margin-10px"
+                        ),
+                        ui.value_box(
+                            "Jumlah Keluarga Sasaran",
+                            ui.output_text("jumlah_keluarga_sasaran"),
+                            theme=ui.ValueBoxTheme(class_="", bg = "#f6f8fa", fg = "#0B538E"),
+                            showcase= faicons.icon_svg("child-reaching"),
+                            class_="margin-10px"
+                        ),
+                        ui.value_box(
+                            "Jumlah KRS",
+                            ui.output_text("jumlah_krs_menu"),
+                            theme=ui.ValueBoxTheme(class_="", bg = "#f6f8fa", fg = "#0B538E"),
+                            showcase= faicons.icon_svg("child-reaching"),
+                            class_="margin-10px"
+                        )
+                    )
+                ),
+                ui.layout_column_wrap(
+                    ui.card(
+                        output_widget("peringkat_kesejahteraan"),  
+                        full_screen=True
+                    ),
+                    ui.card(
+                        output_widget("faktor_krs"),  
+                        full_screen=True
+                    )
+                ),
+                ui.layout_column_wrap(
+                    ui.card(
+                        output_widget("pie_punya_baduta"),
+                        full_screen=True
+                    ),
+                    ui.card(
+                        output_widget("pie_punya_balita"),
+                        full_screen=True
+                    ),
+                    ui.card(
+                        output_widget("pie_pus_hamil"),
+                        full_screen=True
+                    )
+                )
             ),
         )
         
     ),
-    ui.nav_panel(
-        "Eksplor Data", 
-        "Otw"
-    ),
-    ui.nav_panel(
-        "Download Data", "ini"
-    ),
+#    ui.nav_panel(
+#        "Eksplor Data", 
+#        "Maaf, Sedang Dalam Pengembangan"
+#    ),
+#    ui.nav_panel(
+#        "Download Data", "Maaf, Se"
+#    ),
     title= ui.tags.div(
         ui.img(src="https://harimulya.com/wp-content/uploads/2024/12/logo-kemendukbangga.png", height="40px", style="margin-right: 10px;"),  # Gambar logo
         "Profil Desa"  # Teks title
@@ -458,7 +504,7 @@ def server(input, output, session):
         val_desa.set(filter_desa)
 
     ##Ringkasan
-    data_pkb = pl.read_csv("data/nama pkb.csv") 
+    data_pkb = pl.read_csv("data/nama pkb.csv", separator=";") 
     data_tpk = pl.read_csv("data/nama_tpk.csv")
     @render.text
     @reactive.event(input.action_button)
@@ -477,7 +523,7 @@ def server(input, output, session):
                             pl.col("KABUPATEN").is_in(filter_kabupaten),
                             pl.col("KECAMATAN").is_in(filter_kecamatan),
                             pl.col("KELURAHAN").is_in(filter_desa)
-                        ).select(['KECAMATAN', 'NAMA PKB']).unique().height)
+                        ).select(['KABUPATEN', 'NAMA PKB']).unique().height)
         return nama_pkb
     
     @render.text
@@ -506,7 +552,7 @@ def server(input, output, session):
             ).select(['Kecamatan', 'Register']).unique().height
         )
     
-    data_pus = pl.read_csv("data/data_pus.csv")
+    data_pus = pl.read_csv("data/data_pus.csv",separator=";")
     @render.text
     @reactive.event(input.action_button)
     def jumlah_pus():
@@ -548,7 +594,7 @@ def server(input, output, session):
             , 2)
         )  + "%"
     
-    data_mix = pl.read_csv("data/data_mix_kontra.csv")
+    data_mix = pl.read_csv("data/data_mix_kontra.csv", separator=";")
     @render.text
     @reactive.event(input.action_button)
     def jumlah_mkjp():
@@ -612,7 +658,7 @@ def server(input, output, session):
         return f"{max_column} ({format_number(max_value)})"
     
     
-    faskes_sdm = pl.read_csv("data/data_faskes_siga.csv")
+    faskes_sdm = pl.read_csv("data/data_faskes_siga.csv", separator=";")
     @render.text
     @reactive.event(input.action_button)
     def tempat_pelayanan_kb():
@@ -684,7 +730,7 @@ def server(input, output, session):
                 ).shape[0]
         )
     
-    data_krs_verval = pl.read_csv("data/data_verval_krs_2024_sem1.csv")
+    data_krs_verval = pl.read_csv("data/data_verval_krs_2024_sem2.csv", separator=";")
     @render.text
     @reactive.event(input.action_button)
     def jumlah_krs():
@@ -698,8 +744,8 @@ def server(input, output, session):
                 ).group_by(
                     'PROVINSI'
                 ).agg([
-                    pl.col("KRS").sum(),
-                ]).select(pl.col("KRS")).item())
+                    pl.col("JUMLAH KRS").sum(),
+                ]).select(pl.col("JUMLAH KRS")).item())
 
     @render.text
     @reactive.event(input.action_button)
@@ -733,7 +779,7 @@ def server(input, output, session):
                     pl.col("PUS HAMIL").sum(),
                 ]).select(pl.col("PUS HAMIL")).item())
 
-    sasaran_poktan = pl.read_csv("data/sasaran_poktan_gabung.csv")
+    sasaran_poktan = pl.read_csv("data/sasaran_poktan_gabung.csv", separator=";")
     @render.text
     @reactive.event(input.action_button)
     def jumlah_sasaran_bkb():
@@ -805,13 +851,13 @@ def server(input, output, session):
     #                                     )
     #     return render.DataGrid(data_poktan)  
     
-    data_bkb = pl.read_csv("data/data_bkb.csv")
-    data_bkr = pl.read_csv("data/data_bkr.csv")
-    data_bkl = pl.read_csv("data/data_bkl.csv")
-    data_uppka = pl.read_csv("data/data_uppka.csv")
-    data_pikr = pl.read_csv("data/data_pikr.csv")
-    data_kkb = pl.read_csv("data/data_kkb.csv")
-    data_rdk = pl.read_csv("data/data_rdk.csv")
+    data_bkb = pl.read_csv("data/data_bkb.csv",separator=";")
+    data_bkr = pl.read_csv("data/data_bkr.csv", separator=";")
+    data_bkl = pl.read_csv("data/data_bkl.csv", separator=";")
+    data_uppka = pl.read_csv("data/data_uppka.csv", separator=";")
+    data_pikr = pl.read_csv("data/data_pikr.csv", separator=";")
+    data_kkb = pl.read_csv("data/data_kkb.csv", separator=";")
+    data_rdk = pl.read_csv("data/data_rdk.csv", separator=";")
     def jumlah_desa_pembanding():
         filter_kabupaten = val_kab.get()
         filter_kecamatan = val_kec.get()
@@ -854,7 +900,7 @@ def server(input, output, session):
             pl.col("KECAMATAN").is_in(filter_kecamatan),
             pl.col("KELURAHAN").is_in(filter_desa),
             pl.col("BULAN").is_in(filter_bulan)
-        ).select(pl.col("JUMLAH_BKB")).sum().item()
+        ).select(pl.col("YANG ADA")).sum().item()
 
         if jumlah_desa_pembanding() <= jumlah_bkb:
             warna_fg = "#f6f8fa"
@@ -889,7 +935,7 @@ def server(input, output, session):
             pl.col("KECAMATAN").is_in(filter_kecamatan),
             pl.col("KELURAHAN").is_in(filter_desa),
             pl.col("BULAN").is_in(filter_bulan)
-        ).select(pl.col("JUMLAH_BKR")).sum().item()
+        ).select(pl.col("YANG ADA")).sum().item()
 
         if jumlah_desa_pembanding() <= jumlah_bkr:
             warna_fg = "#f6f8fa"
@@ -924,7 +970,7 @@ def server(input, output, session):
             pl.col("KECAMATAN").is_in(filter_kecamatan),
             pl.col("KELURAHAN").is_in(filter_desa),
             pl.col("BULAN").is_in(filter_bulan)
-        ).select(pl.col("JUMLAH_BKL")).sum().item()
+        ).select(pl.col("YANG ADA")).sum().item()
 
         if jumlah_desa_pembanding() <= jumlah_bkl:
             warna_fg = "#f6f8fa"
@@ -959,7 +1005,7 @@ def server(input, output, session):
             pl.col("KECAMATAN").is_in(filter_kecamatan),
             pl.col("KELURAHAN").is_in(filter_desa),
             pl.col("BULAN").is_in(filter_bulan)
-        ).select(pl.col("JUMLAH_UPPKA")).sum().item()
+        ).select(pl.col("YANG ADA")).sum().item()
 
         if jumlah_desa_pembanding() <= jumlah_uppka:
             warna_fg = "#f6f8fa"
@@ -994,7 +1040,7 @@ def server(input, output, session):
             pl.col("KECAMATAN").is_in(filter_kecamatan),
             pl.col("KELURAHAN").is_in(filter_desa),
             pl.col("BULAN").is_in(filter_bulan)
-        ).select(pl.col("JUMLAH_PIKR")).sum().item()
+        ).select(pl.col("YANG ADA")).sum().item()
 
         if jumlah_desa_pembanding() <= jumlah_pikr:
             warna_fg = "#f6f8fa"
@@ -1022,14 +1068,12 @@ def server(input, output, session):
         filter_kabupaten = val_kab.get()
         filter_kecamatan = val_kec.get()
         filter_desa = val_desa.get()
-        filter_bulan = [input.pilih_bulan()]
 
         jumlah_kkb = data_kkb.filter(
             pl.col("KABUPATEN").is_in(filter_kabupaten),
             pl.col("KECAMATAN").is_in(filter_kecamatan),
-            pl.col("KELURAHAN").is_in(filter_desa),
-            pl.col("BULAN").is_in(filter_bulan)
-        ).select(pl.col("JUMLAH_KKB")).sum().item()
+            pl.col("KELURAHAN").is_in(filter_desa)
+        ).select(pl.col("JUMLAH KAMPUNG KB")).sum().item()
 
         if jumlah_desa_pembanding() <= jumlah_kkb:
             warna_fg = "#f6f8fa"
@@ -1057,14 +1101,13 @@ def server(input, output, session):
         filter_kabupaten = val_kab.get()
         filter_kecamatan = val_kec.get()
         filter_desa = val_desa.get()
-        filter_bulan = [input.pilih_bulan()]
+        #filter_bulan = [input.pilih_bulan()]
 
         jumlah_rdk = data_rdk.filter(
             pl.col("KABUPATEN").is_in(filter_kabupaten),
             pl.col("KECAMATAN").is_in(filter_kecamatan),
-            pl.col("KELURAHAN").is_in(filter_desa),
-            pl.col("BULAN").is_in(filter_bulan)
-        ).select(pl.col("JUMLAH_RDK")).sum().item()
+            pl.col("KELURAHAN").is_in(filter_desa)
+        ).select(pl.col("JUMLAH RUMAH DATAKU")).sum().item()
 
         if jumlah_desa_pembanding() <= jumlah_rdk:
             warna_fg = "#f6f8fa"
@@ -1399,8 +1442,8 @@ def server(input, output, session):
     # ### akhir profil
 
     ### awal KB
-    data_pus = pl.read_csv("data/data_pus.csv")
-    data_mix = pl.read_csv("data/data_mix_kontra.csv")
+    #data_pus = pl.read_csv("data/data_pus.csv")
+    #data_mix = pl.read_csv("data/data_mix_kontra.csv")
     @render_widget
     @reactive.event(input.action_button)
     async def tren_pus():
@@ -1977,9 +2020,6 @@ def server(input, output, session):
         # Mengurutkan data berdasarkan jumlah secara descending
         mix_kontra = mix_kontra.sort("JUMLAH", descending=True)
 
-        # Konversi ke Pandas DataFrame
-      #  sorted_df = sorted_data.to_pandas()
-
         # Membuat grafik batang horizontal dengan Altair
         chart = (
             alt.Chart(mix_kontra)
@@ -2089,44 +2129,604 @@ def server(input, output, session):
 
         # Arc (donut)
         arc = base.mark_arc(
-            outerRadius=150,
+            outerRadius=120,
             innerRadius=80
         )
 
         # Label di luar donut dengan dua baris
-        text = base.mark_text(
-            radius=200,
-            fontSize=11,
-            align="center",
-            baseline="bottom",
+        text = base.mark_text(  
+            radius=145,
+            size=11,    
+            #align="center",
+            #baseline="bottom",
             lineBreak="\n"  # Pemisah baris
         ).encode(
             text="LABEL:N"  # Kolom gabungan
         )
 
+
         # Gabungkan grafik
-        chart = (arc + text).configure_view(
-            strokeWidth=0
-        ).configure_view(
-            strokeWidth=0
-        ).configure_axis(
-            grid=False,
-            labelFontSize=12,
-            titleFontSize=14
-        ).configure(
-            padding={"left": 10, "right": 10, "top": 20, "bottom": 0},  # Sesuaikan padding
-            background='#f6f8fa',
-            autosize=alt.AutoSizeParams(
-                type='fit',
-                contains='padding'
+        chart = alt.layer(arc, text).properties(
+                width='container',
+                height='container',
+                title="Perbandingan Pengguna Metode KB"
+            ).configure_view(
+                strokeWidth=0
+            ).configure_axis(
+                grid=False,
+                labelFontSize=12,
+                titleFontSize=14
+            ).configure(
+                padding={"left": 0, "right": 3, "top": 20, "bottom": 0},  # Sesuaikan padding
+                background='#f6f8fa',
+                autosize=alt.AutoSizeParams(
+                    type='fit',
+                    contains='padding'
+                )
+            ).configure_legend(
+                disable=True  # Hapus legenda jika tidak diperlukan
             )
-        ).configure_legend(
-            disable=True  # Hapus legenda jika tidak diperlukan
-        )
 
         return chart
     ### akhir KB
 
+    ### awal KRS
+    @render.text
+    @reactive.event(input.action_button)
+    def jumlah_keluarga():
+        filter_kabupaten = val_kab.get()
+        filter_kecamatan = val_kec.get()
+        filter_desa = val_desa.get()
+        return format_number(data_krs_verval.filter(
+                    pl.col("KABUPATEN").is_in(filter_kabupaten),
+                    pl.col("KECAMATAN").is_in(filter_kecamatan),
+                    pl.col("KELURAHAN").is_in(filter_desa)
+                ).group_by(
+                    'PROVINSI'
+                ).agg([
+                    pl.col("JUMLAH KELUARGA").sum(),
+                ]).select(pl.col("JUMLAH KELUARGA")).item())
+    
+    @render.text
+    @reactive.event(input.action_button)
+    def jumlah_keluarga_sasaran():
+        filter_kabupaten = val_kab.get()
+        filter_kecamatan = val_kec.get()
+        filter_desa = val_desa.get()
+        return format_number(data_krs_verval.filter(
+                    pl.col("KABUPATEN").is_in(filter_kabupaten),
+                    pl.col("KECAMATAN").is_in(filter_kecamatan),
+                    pl.col("KELURAHAN").is_in(filter_desa)
+                ).group_by(
+                    'PROVINSI'
+                ).agg([
+                    pl.col("JUMLAH KELUARGA SASARAN").sum(),
+                ]).select(pl.col("JUMLAH KELUARGA SASARAN")).item())
+    
+    @render.text
+    @reactive.event(input.action_button)
+    def jumlah_krs_menu():
+        filter_kabupaten = val_kab.get()
+        filter_kecamatan = val_kec.get()
+        filter_desa = val_desa.get()
+        return format_number(data_krs_verval.filter(
+                    pl.col("KABUPATEN").is_in(filter_kabupaten),
+                    pl.col("KECAMATAN").is_in(filter_kecamatan),
+                    pl.col("KELURAHAN").is_in(filter_desa)
+                ).group_by(
+                    'PROVINSI'
+                ).agg([
+                    pl.col("JUMLAH KRS").sum(),
+                ]).select(pl.col("JUMLAH KRS")).item())
+    
+    @render_widget
+    @reactive.event(input.action_button)
+    def peringkat_kesejahteraan():
+        filter_kabupaten = val_kab.get()
+        filter_kecamatan = val_kec.get()
+        filter_desa = val_desa.get()
+        data_kesejahteraan = data_krs_verval.filter(
+            pl.col("KABUPATEN").is_in(filter_kabupaten),
+            pl.col("KECAMATAN").is_in(filter_kecamatan),
+            pl.col("KELURAHAN").is_in(filter_desa)
+        ).group_by('PROVINSI').agg([
+            pl.col("KESEJAHTERAAN 1").sum(),
+            pl.col("KESEJAHTERAAN 2").sum(),
+            pl.col("KESEJAHTERAAN 3").sum(),
+            pl.col("KESEJAHTERAAN 4").sum(),
+            pl.col("KESEJAHTERAAN > 4").sum()
+        ])
+
+
+        data_kesejahteraan = data_kesejahteraan.unpivot(
+            index="PROVINSI",  # Kolom yang tetap
+            on=["KESEJAHTERAAN 1", "KESEJAHTERAAN 2", "KESEJAHTERAAN 3", "KESEJAHTERAAN 4", "KESEJAHTERAAN > 4"],  # Kolom yang di-unpivot
+            variable_name="TINGKAT KESEJAHTERAAN",  # Nama kolom untuk metode KB
+            value_name="JUMLAH"  # Nama kolom untuk jumlah pengguna
+        )
+
+        # Buat custom order untuk tingkat kesejahteraan
+        custom_order = ["KESEJAHTERAAN 1", "KESEJAHTERAAN 2", "KESEJAHTERAAN 3", "KESEJAHTERAAN 4", "KESEJAHTERAAN > 4"]
+
+        # Hitung total jumlah
+        total_jumlah = data_kesejahteraan["JUMLAH"].sum()
+
+        # Menambahkan kolom persentase dan formatting
+        data_kesejahteraan = data_kesejahteraan.with_columns(
+            (pl.col("JUMLAH") / total_jumlah * 100).round(2).alias("PERSENTASE"),
+            # Format angka dengan pemisah titik
+            pl.col("JUMLAH").map_elements(
+                lambda x: f"{int(x):,}".replace(",", "."),
+                return_dtype=pl.Utf8
+            ).alias("JUMLAH_FORMATTED")
+        )
+
+        # Format kolom persentase ke string dengan koma dan %
+        data_kesejahteraan = data_kesejahteraan.with_columns(
+            pl.col("PERSENTASE").map_elements(
+                lambda x: f"{float(x):.2f}%".replace('.', ','),
+                return_dtype=pl.Utf8
+            ).alias("PERSENTASE_FORMAT")
+        )
+
+        # Warna untuk setiap tingkat kesejahteraan
+        color_scale = alt.Scale(
+            domain=custom_order,
+            range=["#FF4500", "#FFA500", "#FFD700", "#3CB371", "#2E8B57"]  # Merah, Oranye, Kuning, Hijau muda, Hijau tua
+        )
+
+
+        # Membuat grafik batang horizontal dengan Altair
+        chart = (
+            alt.Chart(data_kesejahteraan)
+            .mark_bar()
+                .encode(
+                    y=alt.Y("TINGKAT KESEJAHTERAAN:N", 
+                            title="Tingkat Kesejahteraan", 
+                            sort=custom_order),  # Urutkan sesuai custom order
+                    x=alt.X("JUMLAH:Q", title="Jumlah Pengguna",
+                            axis=alt.Axis(tickCount=3)),
+                    color=alt.Color("TINGKAT KESEJAHTERAAN:N", 
+                                scale=color_scale, 
+                                legend=None),
+                    tooltip=[
+                        alt.Tooltip("TINGKAT KESEJAHTERAAN", title="Tingkat Kesejahteraan"),
+                        alt.Tooltip("JUMLAH_FORMATTED:N", title="Jumlah"),
+                        alt.Tooltip("PERSENTASE_FORMAT:N", title="Persentase")
+                    ]
+            )
+        )
+
+        # Menambahkan label di ujung batang
+        text = (
+            alt.Chart(data_kesejahteraan)
+            .mark_text(align="left", baseline="middle", dx=5)
+            .encode(
+                y=alt.Y("TINGKAT KESEJAHTERAAN:N", sort="-x"),
+                x=alt.X("JUMLAH:Q"),
+                text=alt.X("JUMLAH_FORMATTED:N")
+            )
+        )
+
+        chart = alt.layer(chart, text).properties(
+                width='container',
+                height='container',
+                title="Perbandingan Pengguna Metode KB"
+            ).configure_view(
+                strokeWidth=0
+            ).configure_axis(
+                grid=False,
+                labelFontSize=12,
+                titleFontSize=14
+            ).configure(
+                padding={"left": 0, "right": 3, "top": 20, "bottom": 10},  # Sesuaikan padding
+                background='#f6f8fa',
+                autosize=alt.AutoSizeParams(
+                    type='fit',
+                    contains='padding'
+                )
+            ).configure_legend(
+                disable=True  # Hapus legenda jika tidak diperlukan
+            )
+        return chart
+    
+    @render_widget
+    @reactive.event(input.action_button)
+    def faktor_krs():
+        filter_kabupaten = val_kab.get()
+        filter_kecamatan = val_kec.get()
+        filter_desa = val_desa.get()
+        faktor_krs = data_krs_verval.filter(
+            pl.col("KABUPATEN").is_in(filter_kabupaten),
+            pl.col("KECAMATAN").is_in(filter_kecamatan),
+            pl.col("KELURAHAN").is_in(filter_desa)
+        ).group_by('PROVINSI').agg([
+            pl.col("SUMBER AIR MINUM TIDAK LAYAK").sum(),
+            pl.col("JAMBAN TIDAK LAYAK").sum(),
+            pl.col("TERLALU MUDA").sum(),
+            pl.col("TERLALU TUA").sum(),
+            pl.col("TERLALU DEKAT").sum(),
+            pl.col("TERLALU BANYAK").sum(),
+            pl.col("BUKAN PESERTA KB MODERN").sum()
+        ])
+
+        faktor_krs = faktor_krs.unpivot(
+            index="PROVINSI",  # Kolom yang tetap
+            on=["SUMBER AIR MINUM TIDAK LAYAK", "JAMBAN TIDAK LAYAK", "TERLALU MUDA", "TERLALU TUA", "TERLALU DEKAT", "TERLALU BANYAK", "BUKAN PESERTA KB MODERN"],  # Kolom yang di-unpivot
+            variable_name="FAKTOR KRS",  # Nama kolom untuk metode KB
+            value_name="JUMLAH"  # Nama kolom untuk jumlah pengguna
+        )
+
+
+        # Urutkan data berdasarkan jumlah pengguna (terbesar ke terkecil)
+        faktor_krs = faktor_krs.sort("JUMLAH", descending=True)
+
+        # Menambahkan kolom persentase (dengan 2 angka desimal)
+        # Menambahkan kolom persentase (dengan 2 angka desimal)
+        faktor_krs = faktor_krs.with_columns(
+            # Format angka dengan pemisah titik menggunakan map_elements
+            pl.col("JUMLAH").map_elements(
+                lambda x: f"{int(x):,}".replace(",", "."),
+                return_dtype=pl.Utf8
+            ).alias("JUMLAH FORMATTED")
+        )
+
+        # Mengurutkan data berdasarkan jumlah secara descending
+        faktor_krs = faktor_krs.sort("JUMLAH", descending=True)
+
+        # Membuat grafik batang horizontal dengan Altair
+        chart = (
+            alt.Chart(faktor_krs)
+            .mark_bar(color=warna_biru)
+            .encode(
+                y=alt.Y("FAKTOR KRS:N", title="Faktor KRS", sort="-x"),
+                x=alt.X("JUMLAH:Q", title="Jumlah",
+                        axis=alt.Axis(
+                        tickCount=3,  # BATASI 5 TICK SAJA
+                        )),
+                tooltip=[
+                    alt.Tooltip("FAKTOR KRS", title="Faktor"),
+                    alt.Tooltip("JUMLAH FORMATTED:Q", title="Jumlah")
+                ]
+            )
+        )
+
+        # Menambahkan label di ujung batang
+        text = (
+            alt.Chart(faktor_krs)
+            .mark_text(align="left", baseline="middle", dx=5)
+            .encode(
+                y=alt.Y("FAKTOR KRS:N", sort="-x"),
+                x=alt.X("JUMLAH:Q"),
+                text="JUMLAH FORMATTED:Q"
+            )
+        )
+
+        chart = alt.layer(chart, text).properties(
+        width='container',
+        height='container',
+        title="Perbandingan Faktor KRS"
+            ).configure_view(
+                strokeWidth=0
+            ).configure_axis(
+                grid=False,
+                labelFontSize=12,
+                titleFontSize=14
+            ).configure(
+                padding={"left": 0, "right": 10, "top": 20, "bottom": 10},  # Sesuaikan padding
+                background='#f6f8fa',
+                autosize=alt.AutoSizeParams(
+                    type='fit',
+                    contains='padding'
+                )
+            ).configure_legend(
+                disable=True  # Hapus legenda jika tidak diperlukan
+            )
+        return chart
+    
+    @render_widget
+    @reactive.event(input.action_button)
+    def pie_punya_baduta():
+        filter_kabupaten = val_kab.get()
+        filter_kecamatan = val_kec.get()
+        filter_desa = val_desa.get()
+        if input.pilih_kab() == "SEMUA KABUPATEN":
+            data_kel_baduta = data_krs_verval.group_by(['KABUPATEN']).agg([
+                pl.col("PUNYA BADUTA").sum()
+            ])
+            data_kel_baduta = data_kel_baduta.rename({
+                "KABUPATEN": "KATEGORI"
+            })
+            subtitle_pie = "Berdasarkan Kabupaten"
+            atur_radius = 100
+        elif input.pilih_kab() != "SEMUA KABUPATEN" and  input.pilih_kec() == "SEMUA KECAMATAN":
+            data_kel_baduta = data_krs_verval.with_columns(
+                pl.when(pl.col("KABUPATEN") == str(input.pilih_kab()))
+                .then(pl.lit(str(input.pilih_kab())))
+                .otherwise(pl.lit("LAINNYA"))
+                .alias("KATEGORI")
+            ).group_by("KATEGORI").agg(
+                pl.sum("PUNYA BADUTA").alias("PUNYA BADUTA")
+            )
+            subtitle_pie = input.pilih_kab() + " dan Kabupaten Lainnya"
+            atur_radius = 150
+        elif input.pilih_kab() != "SEMUA KABUPATEN" and  input.pilih_kec() != "SEMUA KECAMATAN" and input.pilih_desa() == "SEMUA DESA/KELURAHAN":
+            data_kel_baduta = data_krs_verval.filter(
+                pl.col("KABUPATEN").is_in(filter_kabupaten)
+            ).with_columns(
+                pl.when(pl.col("KECAMATAN") == str(input.pilih_kec()))
+                .then(pl.lit(str(input.pilih_kec())))
+                .otherwise(pl.lit("LAINNYA"))
+                .alias("KATEGORI")
+            ).group_by("KATEGORI").agg(
+                pl.sum("PUNYA BADUTA").alias("PUNYA BADUTA")
+            )
+            subtitle_pie = input.pilih_kec() + " dan Kec Lainnya \ndi Kab." + input.pilih_kab()
+            atur_radius = 150
+        else:
+            data_kel_baduta = data_krs_verval.filter(
+                pl.col("KABUPATEN").is_in(filter_kabupaten),
+                pl.col("KECAMATAN").is_in(filter_kecamatan)
+            ).with_columns(
+                pl.when(pl.col("KELURAHAN") == str(input.pilih_desa()))
+                .then(pl.lit(str(input.pilih_kec())))
+                .otherwise(pl.lit("LAINNYA"))
+                .alias("KATEGORI")
+            ).group_by("KATEGORI").agg(
+                pl.sum("PUNYA BADUTA").alias("PUNYA BADUTA")
+            )
+            subtitle_pie = input.pilih_desa() + " dan Desa/Kelurahan Lainnya di Kec." + input.pilih_kec()
+            atur_radius = 150
+
+        data_kel_baduta = data_kel_baduta.with_columns(
+            (pl.col("PUNYA BADUTA") / data_kel_baduta["PUNYA BADUTA"].sum() * 100).round(2).alias("PERSENTASE")
+        )
+
+        # Format kolom persentase ke string dengan koma dan %
+        persentase_list = data_kel_baduta["PERSENTASE"].to_list()
+        persentase_format = [f"{x:.2f}".replace('.', ',') + '%' for x in persentase_list]
+        data_kel_baduta = data_kel_baduta.with_columns(pl.Series("PERSENTASE_FORMAT", persentase_format))
+
+        # Definisi warna
+        color_scale = alt.Scale(
+            domain=["Sudah Terlatih", "Belum Terlatih"],
+            range=[warna_biru, warna_kuning]  # Biru untuk Sudah Terlatih, Kuning untuk Belum
+        )
+
+        # Tambahkan kolom gabungan klasifikasi dan persentase
+        data_kel_baduta = data_kel_baduta.with_columns(
+            (pl.col("KATEGORI") + "\n" + pl.col("PERSENTASE_FORMAT")).alias("LABEL"),
+            pl.col("PUNYA BADUTA").map_elements(
+                lambda x: f"{int(x):,}".replace(",", "."),
+                return_dtype=pl.Utf8
+            ).alias("PUNYA BADUTA FORMATTED")
+        ).sort('PERSENTASE')
+
+        base = alt.Chart(data_kel_baduta, title=alt.Title(
+            "Perbandingan Keluarga Memiliki Baduta",
+            subtitle=subtitle_pie
+        )).encode(
+            alt.Theta("PUNYA BADUTA:Q").stack(True),
+            alt.Color("KATEGORI:N", scale=alt.Scale(scheme='dark2')).legend(None),
+            order=alt.Order("PUNYA BADUTA", sort="descending"),
+            tooltip=[
+                alt.Tooltip("KATEGORI", title="Wilayah"),
+                alt.Tooltip("PUNYA BADUTA FORMATTED:Q", title="Jumlah")
+            ]
+        )
+
+        pie = base.mark_arc(outerRadius=120)
+        text = base.mark_text(radius=atur_radius, size=11, lineBreak="\n").encode(text="LABEL:N", color=alt.value("black"))
+        
+        # Gabungkan grafik pie dan teks, lalu atur warna latar belakang menjadi oranye
+        chart = (pie + text).configure(
+            padding={"left": 0, "right": 0, "top": 20, "bottom": 0},
+            background='#f6f8fa'  # Mengubah latar belakang menjadi oranye
+        )
+            
+        return chart
+    
+    @render_widget
+    @reactive.event(input.action_button)
+    def pie_punya_balita():
+        filter_kabupaten = val_kab.get()
+        filter_kecamatan = val_kec.get()
+        filter_desa = val_desa.get()
+        if input.pilih_kab() == "SEMUA KABUPATEN":
+            data_kel_baduta = data_krs_verval.group_by(['KABUPATEN']).agg([
+                pl.col("PUNYA BALITA").sum()
+            ])
+            data_kel_baduta = data_kel_baduta.rename({
+                "KABUPATEN": "KATEGORI"
+            })
+            subtitle_pie = "Berdasarkan Kabupaten"
+            atur_radius = 100
+        elif input.pilih_kab() != "SEMUA KABUPATEN" and  input.pilih_kec() == "SEMUA KECAMATAN":
+            data_kel_baduta = data_krs_verval.with_columns(
+                pl.when(pl.col("KABUPATEN") == str(input.pilih_kab()))
+                .then(pl.lit(str(input.pilih_kab())))
+                .otherwise(pl.lit("LAINNYA"))
+                .alias("KATEGORI")
+            ).group_by("KATEGORI").agg(
+                pl.sum("PUNYA BALITA").alias("PUNYA BALITA")
+            )
+            subtitle_pie = input.pilih_kab() + " dan Kabupaten Lainnya"
+            atur_radius = 150
+        elif input.pilih_kab() != "SEMUA KABUPATEN" and  input.pilih_kec() != "SEMUA KECAMATAN" and input.pilih_desa() == "SEMUA DESA/KELURAHAN":
+            data_kel_baduta = data_krs_verval.filter(
+                pl.col("KABUPATEN").is_in(filter_kabupaten)
+            ).with_columns(
+                pl.when(pl.col("KECAMATAN") == str(input.pilih_kec()))
+                .then(pl.lit(str(input.pilih_kec())))
+                .otherwise(pl.lit("LAINNYA"))
+                .alias("KATEGORI")
+            ).group_by("KATEGORI").agg(
+                pl.sum("PUNYA BALITA").alias("PUNYA BALITA")
+            )
+            subtitle_pie = input.pilih_kec() + " dan Kec Lainnya \ndi Kab." + input.pilih_kab()
+            atur_radius = 150
+        else:
+            data_kel_baduta = data_krs_verval.filter(
+                pl.col("KABUPATEN").is_in(filter_kabupaten),
+                pl.col("KECAMATAN").is_in(filter_kecamatan)
+            ).with_columns(
+                pl.when(pl.col("KELURAHAN") == str(input.pilih_desa()))
+                .then(pl.lit(str(input.pilih_kec())))
+                .otherwise(pl.lit("LAINNYA"))
+                .alias("KATEGORI")
+            ).group_by("KATEGORI").agg(
+                pl.sum("PUNYA BALITA").alias("PUNYA BALITA")
+            )
+            subtitle_pie = input.pilih_desa() + " dan Desa/Kelurahan Lainnya di Kec." + input.pilih_kec()
+            atur_radius = 150
+
+        data_kel_baduta = data_kel_baduta.with_columns(
+            (pl.col("PUNYA BALITA") / data_kel_baduta["PUNYA BALITA"].sum() * 100).round(2).alias("PERSENTASE")
+        )
+
+        data_kel_baduta = data_kel_baduta.with_columns(
+            (pl.col("PUNYA BALITA") / data_kel_baduta["PUNYA BALITA"].sum() * 100).round(2).alias("PERSENTASE")
+        )
+
+        # Format kolom persentase ke string dengan koma dan %
+        persentase_list = data_kel_baduta["PERSENTASE"].to_list()
+        persentase_format = [f"{x:.2f}".replace('.', ',') + '%' for x in persentase_list]
+        data_kel_baduta = data_kel_baduta.with_columns(pl.Series("PERSENTASE_FORMAT", persentase_format))
+
+        # Definisi warna
+        color_scale = alt.Scale(
+            domain=["Sudah Terlatih", "Belum Terlatih"],
+            range=[warna_biru, warna_kuning]  # Biru untuk Sudah Terlatih, Kuning untuk Belum
+        )
+
+        # Tambahkan kolom gabungan klasifikasi dan persentase
+        data_kel_baduta = data_kel_baduta.with_columns(
+            (pl.col("KATEGORI") + "\n" + pl.col("PERSENTASE_FORMAT")).alias("LABEL"),
+            pl.col("PUNYA BALITA").map_elements(
+                lambda x: f"{int(x):,}".replace(",", "."),
+                return_dtype=pl.Utf8
+            ).alias("PUNYA BALITA FORMATTED")
+        ).sort('PERSENTASE')
+
+        base = alt.Chart(data_kel_baduta, title=alt.Title(
+            "Perbandingan Keluarga Memiliki Balita",
+            subtitle=subtitle_pie
+        )).encode(
+            alt.Theta("PUNYA BALITA:Q").stack(True),
+            alt.Color("KATEGORI:N", scale=alt.Scale(scheme= 'dark2')).legend(None),
+            order=alt.Order("PUNYA BALITA", sort="descending"),
+            tooltip=[
+                alt.Tooltip("KATEGORI", title="Wilayah"),
+                alt.Tooltip("PUNYA BALITA FORMATTED:Q", title="Jumlah")
+            ]
+        )
+
+        pie = base.mark_arc(outerRadius=120)
+        text = base.mark_text(radius=atur_radius, size=11, lineBreak="\n").encode(text="LABEL:N", color=alt.value("black"))
+        
+        # Gabungkan grafik pie dan teks, lalu atur warna latar belakang menjadi oranye
+        chart = (pie + text).configure(
+            padding={"left": 0, "right": 0, "top": 20, "bottom": 0},
+            background='#f6f8fa'  # Mengubah latar belakang menjadi oranye
+        )
+            
+        return chart
+    
+    @render_widget
+    @reactive.event(input.action_button)
+    def pie_pus_hamil():
+        filter_kabupaten = val_kab.get()
+        filter_kecamatan = val_kec.get()
+        filter_desa = val_desa.get()
+        if input.pilih_kab() == "SEMUA KABUPATEN":
+            data_pus_hamil = data_krs_verval.group_by(['KABUPATEN']).agg([
+                pl.col("PUS HAMIL").sum()
+            ])
+            data_pus_hamil = data_pus_hamil.rename({
+                "KABUPATEN": "KATEGORI"
+            })
+            subtitle_pie = "Berdasarkan Kabupaten"
+            atur_radius = 100
+        elif input.pilih_kab() != "SEMUA KABUPATEN" and  input.pilih_kec() == "SEMUA KECAMATAN":
+            data_pus_hamil = data_krs_verval.with_columns(
+                pl.when(pl.col("KABUPATEN") == str(input.pilih_kab()))
+                .then(pl.lit(str(input.pilih_kab())))
+                .otherwise(pl.lit("LAINNYA"))
+                .alias("KATEGORI")
+            ).group_by("KATEGORI").agg(
+                pl.sum("PUS HAMIL").alias("PUS HAMIL")
+            )
+            subtitle_pie = input.pilih_kab() + " dan Kabupaten Lainnya"
+            atur_radius = 150
+        elif input.pilih_kab() != "SEMUA KABUPATEN" and  input.pilih_kec() != "SEMUA KECAMATAN" and input.pilih_desa() == "SEMUA DESA/KELURAHAN":
+            data_pus_hamil = data_krs_verval.filter(
+                pl.col("KABUPATEN").is_in(filter_kabupaten)
+            ).with_columns(
+                pl.when(pl.col("KECAMATAN") == str(input.pilih_kec()))
+                .then(pl.lit(str(input.pilih_kec())))
+                .otherwise(pl.lit("LAINNYA"))
+                .alias("KATEGORI")
+            ).group_by("KATEGORI").agg(
+                pl.sum("PUS HAMIL").alias("PUS HAMIL")
+            )
+            subtitle_pie = input.pilih_kec() + " dan Kec Lainnya \ndi Kab." + input.pilih_kab()
+            atur_radius = 150
+        else:
+            data_pus_hamil = data_krs_verval.filter(
+                pl.col("KABUPATEN").is_in(filter_kabupaten),
+                pl.col("KECAMATAN").is_in(filter_kecamatan)
+            ).with_columns(
+                pl.when(pl.col("KELURAHAN") == str(input.pilih_desa()))
+                .then(pl.lit(str(input.pilih_kec())))
+                .otherwise(pl.lit("LAINNYA"))
+                .alias("KATEGORI")
+            ).group_by("KATEGORI").agg(
+                pl.sum("PUS HAMIL").alias("PUS HAMIL")
+            )
+            subtitle_pie = input.pilih_desa() + " dan Desa/Kelurahan Lainnya di Kec." + input.pilih_kec()
+            atur_radius = 150
+
+        data_pus_hamil = data_pus_hamil.with_columns(
+            (pl.col("PUS HAMIL") / data_pus_hamil["PUS HAMIL"].sum() * 100).round(2).alias("PERSENTASE")
+        )
+
+        # Format kolom persentase ke string dengan koma dan %
+        persentase_list = data_pus_hamil["PERSENTASE"].to_list()
+        persentase_format = [f"{x:.2f}".replace('.', ',') + '%' for x in persentase_list]
+        data_pus_hamil = data_pus_hamil.with_columns(pl.Series("PERSENTASE_FORMAT", persentase_format))
+
+        # Tambahkan kolom gabungan klasifikasi dan persentase
+        data_pus_hamil = data_pus_hamil.with_columns(
+            (pl.col("KATEGORI") + "\n" + pl.col("PERSENTASE_FORMAT")).alias("LABEL"),
+            pl.col("PUS HAMIL").map_elements(
+                lambda x: f"{int(x):,}".replace(",", "."),
+                return_dtype=pl.Utf8
+            ).alias("PUS HAMIL FORMATTED")
+        ).sort('PERSENTASE')
+
+        base = alt.Chart(data_pus_hamil, title=alt.Title(
+            "Perbandingan PUS Hamil",
+            subtitle=subtitle_pie
+        )).encode(
+            alt.Theta("PUS HAMIL:Q").stack(True),
+            alt.Color("KATEGORI:N", scale=alt.Scale(scheme= 'dark2')).legend(None),
+            order=alt.Order("PUS HAMIL", sort="descending"),
+            tooltip=[
+                alt.Tooltip("KATEGORI", title="Wilayah"),
+                alt.Tooltip("PUS HAMIL FORMATTED:Q", title="Jumlah")
+            ]
+        )
+
+        pie = base.mark_arc(outerRadius=120)
+        text = base.mark_text(radius=atur_radius, size=11, lineBreak="\n").encode(text="LABEL:N", color=alt.value("black"))
+        
+        # Gabungkan grafik pie dan teks, lalu atur warna latar belakang menjadi oranye
+        chart = (pie + text).configure(
+            padding={"left": 0, "right": 0, "top": 20, "bottom": 0},
+            background='#f6f8fa'  # Mengubah latar belakang menjadi oranye
+        )
+            
+        return chart
     ### eksplore
     ### esplore
 
