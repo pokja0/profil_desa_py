@@ -11,16 +11,17 @@ import faicons
 import shiny as pyshiny
 
 import pandas as pd
-from great_tables import GT, exibble, loc, style
+from great_tables import GT, exibble, loc, style, md, html
+from great_tables.data import islands
+
+import itables
+from itables.widget import ITable
+
 from ipyleaflet import Map 
 import folium
 import ipyleaflet
 
 import math
-
-import great_tables as gt
-from itables.sample_dfs import get_countries
-from itables.shiny import DT
 
 from pathlib import Path
 import asyncio
@@ -303,8 +304,8 @@ app_ui = ui.page_navbar(
                     ui.output_ui("kepemilikan_rdk"),
                     class_="custom-grid"  # Class CSS untuk grid
                 ),
-                ui.layout_column_wrap(
-
+                ui.div(
+                    output_widget("tabel_reactable", height="3000px")
                 ),
                 # ui.layout_column_wrap(
                 #     ui.card(
@@ -2077,7 +2078,7 @@ def server(input, output, session):
         filter_kabupaten = val_kab.get()
         filter_kecamatan = val_kec.get()
         filter_desa = val_desa.get()
-        filter_bulan = input.pilih_bulan()
+        
         # Klasifikasi tenaga kerja berdasarkan kolom PELATIHAN
         data_with_classification = faskes_sdm.with_columns(
             pl.when(
@@ -2727,6 +2728,72 @@ def server(input, output, session):
         )
             
         return chart
+    
+    @render_widget
+    @reactive.event(input.action_button)
+    def tabel_reactable():
+        filter_kabupaten = val_kab.get()
+        filter_kecamatan = val_kec.get()
+        filter_desa = val_desa.get()
+        filter_bulan = [input.pilih_bulan()]
+        if input.pilih_kab() == "SEMUA KABUPATEN":
+            jenjang = "KABUPATEN"
+
+        elif input.pilih_kab() != "SEMUA KABUPATEN" and  input.pilih_kec() == "SEMUA KECAMATAN":
+            jenjang = "KECAMATAN"
+        else:
+            jenjang = "KELURAHAN"
+        def process_data(df, unit_name):
+            # Pastikan kolom yang akan dihitung adalah numerik
+            df = df.with_columns([
+                pl.col("YANG ADA").cast(pl.Int64),
+                pl.col("YANG LAPOR").cast(pl.Int64)
+            ])
+            
+            # Lakukan filter dan agregasi
+            processed_df = df.filter(
+                pl.col("KABUPATEN").is_in(filter_kabupaten),
+                pl.col("BULAN").is_in(filter_bulan),
+                pl.col("KECAMATAN").is_in(filter_kecamatan),
+                pl.col("KELURAHAN").is_in(filter_desa)
+            ).group_by([jenjang]).agg([
+                pl.col("YANG ADA").sum().alias(f"JUMLAH {unit_name}"),
+                pl.col("YANG LAPOR").sum().alias(f"JUMLAH {unit_name} LAPOR")
+            ]).with_columns(
+                (
+                    pl.col(f"JUMLAH {unit_name}") - pl.col(f"JUMLAH {unit_name} LAPOR")
+                ).alias(f"{unit_name} BELUM LAPOR")
+            )
+            
+            return processed_df
+
+        # Proses setiap DataFrame menggunakan fungsi
+        result_bkb = process_data(data_bkb, "BKB")
+        result_bkr = process_data(data_bkr, "BKR")
+        result_bkl = process_data(data_bkl, "BKL")
+        result_uppka = process_data(data_uppka, "UPPKA")
+        result_pikr = process_data(data_pikr, "PIK-R")
+
+        # Gabungkan semua hasil ke dalam satu DataFrame tunggal
+        # Gunakan join berantai pada kolom 'KABUPATEN'
+        final_result = result_bkb.join(
+            result_bkr, on=jenjang, how='inner'
+        ).join(
+            result_bkl, on=jenjang, how='inner'
+        ).join(
+            result_uppka, on=jenjang, how='inner'
+        ).join(
+            result_pikr, on=jenjang, how='inner'
+        )
+
+        return ITable(final_result,  
+                      caption="A table rendered with ITable", 
+                      buttons=["copyHtml5", "excelHtml5"],
+                      scrollX=True,
+                      paging = False,
+                      fixedColumns={"start": 1},
+                      select=True) 
+        # Note: df is an optional argument 
     ### eksplore
     ### esplore
 
