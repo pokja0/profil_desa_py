@@ -2150,7 +2150,7 @@ def server(input, output, session):
         chart = alt.layer(arc, text).properties(
                 width='container',
                 height='container',
-                title="Perbandingan Pengguna Metode KB"
+                title="Perbandingan Status Pelatihan Tenaga Kesehatan KB"
             ).configure_view(
                 strokeWidth=0
             ).configure_axis(
@@ -2312,7 +2312,7 @@ def server(input, output, session):
         chart = alt.layer(chart, text).properties(
                 width='container',
                 height='container',
-                title="Perbandingan Pengguna Metode KB"
+                title="Perbandingan Tingkat Kesejahteraan KRS"
             ).configure_view(
                 strokeWidth=0
             ).configure_axis(
@@ -2786,8 +2786,8 @@ def server(input, output, session):
             result_pikr, on=jenjang, how='inner'
         )
 
-        return ITable(final_result,  
-                      caption="A table rendered with ITable", 
+        return ITable(final_result,
+                      #caption="A table rendered with ITable", 
                       buttons=["copyHtml5", "excelHtml5"],
                       scrollX=True,
                       paging = False,
