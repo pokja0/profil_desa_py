@@ -106,7 +106,7 @@ app_ui = ui.page_navbar(
             ui.input_selectize("pilih_kec", "Pilih Kecamatan", choices=[], multiple=False),
             ui.input_selectize("pilih_desa", "Pilih Desa/Kelurahan", choices=[], multiple=False),
             ui.input_selectize("pilih_bulan", "BULAN", 
-                                 choices=daftar_bulan[:8], selected="AGUSTUS")#,
+                                 choices=daftar_bulan[:9], selected="SEPTEMBER")#,
             # ui.input_selectize("pilih_tahun", "TAHUN", 
             #                     choices=['2025', '2024'])                    
         ),
