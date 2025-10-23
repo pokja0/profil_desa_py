@@ -96,6 +96,26 @@ warna_kuning = "#d4a017"
 
 warna_biru = "#3498db"
 
+# Tautan yang ingin disematkan
+url_hyperlink = "https://newsiga-siga.bkkbn.go.id/#/form/rekapitulasi"
+teks_hyperlink = "Akses Rekapitulasi Data BKKBN"
+
+# --- Komponen UI ---
+# Kita gunakan ui.a() untuk membuat tag <a> (anchor/tautan)
+# dan tambahkan kelas CSS Bootstrap untuk membuatnya terlihat seperti tombol.
+
+tombol_hyperlink = ui.a(
+    teks_hyperlink,
+    href=url_hyperlink,
+    # target="_blank" akan membuka tautan di tab baru
+    target="_blank",
+    # Kelas CSS Bootstrap untuk tampilan tombol berwarna biru primer
+    class_="btn btn-primary btn-lg",
+    # Atau Anda bisa gunakan btn-success (hijau) atau btn-info (biru muda)
+    # Anda juga bisa menambahkan style kustom di sini
+    style="margin-top: 15px; margin-bottom: 15px;"
+)
+
 app_ui = ui.page_navbar(
     ui.head_content(ui.include_css("www/style.css")),
     ui.nav_panel(
@@ -368,10 +388,119 @@ app_ui = ui.page_navbar(
         )
         
     ),
-#    ui.nav_panel(
-#        "Eksplor Data", 
-#        "Maaf, Sedang Dalam Pengembangan"
-#    ),
+    ui.nav_panel( 
+        "SIPACOAI", 
+        ui.layout_sidebar(
+            ui.sidebar(
+                ui.layout_column_wrap(
+                    ui.input_selectize("pilih_kab_sipacoai", "Pilih Kabupaten", choices=[], multiple=False),
+                    ui.input_selectize("pilih_kec_sipacoai", "Pilih Kecamatan", choices=[], multiple=False),
+                    ui.input_selectize("pilih_desa_sipacoai", "Pilih Desa/Kelurahan", choices=[], multiple=False),
+                    ui.input_selectize("pilih_bulan_sipacoai", "BULAN", 
+                                        choices=daftar_bulan[8:10], selected="SEPTEMBER")#,
+                    # ui.input_selectize("pilih_tahun", "TAHUN", 
+                    #                     choices=['2025', '2024'])                    
+            ),
+            ui.input_action_button(
+                "action_button_sipacoai", "Cari"
+            ), 
+                bg="#f8f8f8",
+            ),        
+            ui.h6(
+                ui.output_text("judul_wilayah_sipacoai"),
+                class_="text-lg-center text-left"
+            ),
+            ui.layout_column_wrap(
+                ui.value_box(
+                    "Keluarga Mendapat Pendampingan",
+                    ui.output_text("jumlah_pendampingan_keluarga"),
+                    "Edukasi, Fasilitasi Bantuan dan Fasilitasi Rujukan",
+                    showcase=faicons.icon_svg("people-roof", width="50px"),
+                    showcase_layout="top right",
+                    theme=ui.ValueBoxTheme(class_="", bg = "#e5cf95", fg = "black")
+                ),
+                ui.value_box(
+                    "Sasaran Hadir Posyandu",
+                    "%",
+                    "Bumil dan Baduta",
+                    showcase=faicons.icon_svg("person-breastfeeding", width="50px"),
+                    theme=ui.ValueBoxTheme(class_="", bg = "#2a81c1", fg = "white"),
+                    showcase_layout="top right"
+                ),
+                ui.value_box(
+                    "Perkembangan Anak",
+                    ui.output_text("jumlah_penggunaan_kka"),
+                    "Jumlah Balita Dipantau dengan KKA",
+                    showcase=faicons.icon_svg("users-rays", width="50px"),
+                    theme=ui.ValueBoxTheme(class_="", bg = "#e5cf95", fg = "black"),
+                    showcase_layout="top right"
+                )
+            ),
+            ui.layout_column_wrap(
+                ui.value_box(
+                    "Genting",
+                    "%",
+                    "Gerakan Orang Tua Asuh Cegah Stunting",
+                    showcase=faicons.icon_svg("baby", width="50px"),
+                    showcase_layout="top right",
+                    theme=ui.ValueBoxTheme(class_="", bg = "#2a81c1", fg = "white")
+                ),
+                ui.value_box(
+                    "Tamasya",
+                    "%",
+                    "Taman Asuh Sayang Anak",
+                    showcase=faicons.icon_svg("child-reaching", width="50px"),
+                    theme=ui.ValueBoxTheme(class_="", bg = "#e5cf95", fg = "black"),
+                    showcase_layout="top right"
+                ),
+                ui.value_box(
+                    "Edukasi KBPP",
+                    ui.output_text("jumlah_edukasi_kbpp"),
+                    "Ibu Hamil dan Pascasalin",
+                    showcase= faicons.icon_svg("person-pregnant"),
+                    theme=ui.ValueBoxTheme(class_="", bg = "#2a81c1", fg = "white"),
+                    showcase_layout="top right"
+                )
+            ),
+            ui.layout_column_wrap(
+                ui.value_box(
+                    "Lansia (SIDAYA)",
+                    "Jumlah",
+                    "Mendapatkan Pemeriksaan Kesehatan",
+                    showcase=faicons.icon_svg("person-cane", width="50px"),
+                    showcase_layout="top right",
+                    theme=ui.ValueBoxTheme(class_="", bg = "#e5cf95", fg = "black")
+                ),
+                ui.value_box(
+                    "Remaja (PIK-R)",
+                    ui.output_text("jumlah_pikr_sipacoai"),
+                    "Jumlah Remaja Hadir Pertemuan PIK-R",
+                    showcase=faicons.icon_svg("people-pulling", width="50px"),
+                    theme=ui.ValueBoxTheme(class_="", bg = "#2a81c1", fg = "white"),
+                    showcase_layout="top right"
+                ),
+                ui.value_box(
+                    "Ayah Teladan (GATI)",
+                    "%",
+                    "Calon Ayah, Ayah dan Remaja yang Mendapatkan Edukasi",
+                    showcase=faicons.icon_svg("user-tie", width="50px"),
+                    theme=ui.ValueBoxTheme(class_="", bg = "#2a81c1", fg = "white"),
+                    showcase_layout="top right"
+                ),
+                ui.value_box(
+                    "Peserta KB Aktif",
+                    ui.output_text("jumlah_mkjp_sipacoai"),
+                    "Akseptor KB MKJP",
+                    showcase=faicons.icon_svg("user-plus", width="50px"),
+                    showcase_layout="top right",
+                    theme=ui.ValueBoxTheme(class_="", bg = "#e5cf95", fg = "black")
+                )
+            ),
+            ui.p("Silakan klik tombol di bawah ini untuk mengakses halaman Data BNBA Kemendukbangga/BKKBN:"),
+            # Sematkan komponen hyperlink yang sudah dibuat
+            tombol_hyperlink
+        )
+    ),
 #    ui.nav_panel(
 #        "Download Data", "Maaf, Se"
 #    ),
@@ -2794,8 +2923,304 @@ def server(input, output, session):
                       fixedColumns={"start": 1},
                       select=True) 
         # Note: df is an optional argument 
-    ### eksplore
-    ### esplore
+    ### sipacoai
+    @reactive.effect
+    def _():
+        daftar_kab = data_poktan['KABUPATEN'].unique()
+        daftar_kab = list(daftar_kab)
+        daftar_kab.insert(0, "SEMUA KABUPATEN")
+        ui.update_selectize(
+            "pilih_kab_sipacoai",
+            choices=daftar_kab
+        )
+
+    
+    @reactive.effect
+    def _():
+        kondisi = input.pilih_kab_sipacoai()
+        if kondisi == "SEMUA KABUPATEN":
+            daftar_kec = ["SEMUA KECAMATAN"]
+        else:
+            daftar_kec = (data_poktan
+                .select(["KABUPATEN","KECAMATAN"])
+                .filter(data_poktan['KABUPATEN'] == input.pilih_kab_sipacoai())
+                .select("KECAMATAN"))
+            daftar_kec = daftar_kec["KECAMATAN"].unique()
+            daftar_kec = list(daftar_kec)
+            daftar_kec.insert(0, "SEMUA KECAMATAN")
+        ui.update_selectize(
+            "pilih_kec_sipacoai",
+            choices=daftar_kec
+        )
+
+    @reactive.effect
+    def _():
+        if input.pilih_kec_sipacoai() == "SEMUA KECAMATAN":
+            daftar_desa = ["SEMUA DESA/KELURAHAN"]
+        else:
+            daftar_desa = (data_poktan
+                .select(["KECAMATAN","KELURAHAN"])
+                .filter(data_poktan['KECAMATAN'] == input.pilih_kec_sipacoai())
+                .select("KELURAHAN"))
+            daftar_desa = list(daftar_desa["KELURAHAN"])
+            daftar_desa.insert(0, "SEMUA DESA/KELURAHAN")
+            
+        ui.update_selectize(
+            "pilih_desa_sipacoai",
+            choices=daftar_desa
+        )
+
+    @render.text
+    @reactive.event(input.action_button_sipacoai)
+    def judul_wilayah_sipacoai():
+        profil = "PROFIL"
+        if input.pilih_kab_sipacoai() == "SEMUA KABUPATEN":
+            teks = "PROVINSI SULAWESI BARAT - " + " 2025"
+        elif input.pilih_kab_sipacoai() != "SEMUA KABUPATEN" and input.pilih_kec_sipacoai() == "SEMUA KECAMATAN":
+            teks = "KABUPATEN " + input.pilih_kab_sipacoai() + " - " + " 2025"
+        elif input.pilih_kab_sipacoai() != "SEMUA KABUPATEN" and input.pilih_kec_sipacoai() != "SEMUA KECAMATAN" and input.pilih_desa_sipacoai() == "SEMUA DESA/KELURAHAN":
+            teks = "KECAMATAN " + input.pilih_kec_sipacoai() + " - " + " 2025"
+        else:
+            teks = "DESA/KELURAHAN " + input.pilih_desa_sipacoai() + " - " + " 2025"
+
+        return "\n" + teks
+
+    val_judul_sipacoai = reactive.value(0)
+    @reactive.effect
+    def _():
+        if input.pilih_kab_sipacoai() == "SEMUA KABUPATEN":
+            teks = " - PROVINSI SULAWESI BARAT"
+        elif input.pilih_kab_sipacoai() != "SEMUA KABUPATEN" and input.pilih_kec_sipacoai() == "SEMUA KECAMATAN":
+            teks = " - KABUPATEN " + input.pilih_kab_sipacoai()
+        elif input.pilih_kab_sipacoai() != "SEMUA KABUPATEN" and input.pilih_kec_sipacoai() != "SEMUA KECAMATAN" and input.pilih_desa_sipacoai() == "SEMUA DESA/KELURAHAN":
+            teks = " - KECAMATAN " + input.pilih_kec_sipacoai()
+        else:
+            teks = "DESA/KELURAHAN" + input.pilih_desa_sipacoai()
+
+        val_judul_sipacoai.set(teks)
+
+    val_kab_sipacoai = reactive.value(0)
+    @reactive.effect
+    def _():
+        #reactive.invalidate_later(0.5)
+        kondisi_input = input.pilih_kab_sipacoai()
+        if kondisi_input == "SEMUA KABUPATEN":
+            filter_kabupaten = data_poktan.select("KABUPATEN").unique().to_series().to_list()
+        else:
+            filter_kabupaten = [input.pilih_kab_sipacoai()]
+        val_kab_sipacoai.set(filter_kabupaten)
+
+    
+    val_kec_sipacoai = reactive.value(0)
+    @reactive.effect
+    def _():
+        #reactive.invalidate_later(0.5)
+        filter_kabupaten = val_kab_sipacoai.get()
+        kondisi_input = input.pilih_kec_sipacoai()
+        if kondisi_input == "SEMUA KECAMATAN":
+            filter_kecamatan = data_poktan.filter(pl.col("KABUPATEN").is_in(filter_kabupaten),
+                pl.col("KECAMATAN").is_in(data_poktan.select("KECAMATAN").unique().to_series().to_list()))
+            filter_kecamatan = filter_kecamatan.select("KECAMATAN").unique().to_series().to_list()
+        else:
+            filter_kecamatan = [input.pilih_kec_sipacoai()]
+        val_kec_sipacoai.set(filter_kecamatan)
+
+    val_desa_sipacoai = reactive.value(0)
+    @reactive.effect
+    def _():
+        #reactive.invalidate_later(0.5)
+        filter_kabupaten = val_kab_sipacoai.get()
+        filter_kecamatan = val_kec_sipacoai.get()
+        kondisi_input = input.pilih_desa_sipacoai()
+        if kondisi_input == "SEMUA DESA/KELURAHAN":
+            filter_desa = data_poktan.filter(pl.col("KABUPATEN").is_in(filter_kabupaten),
+                                            pl.col("KECAMATAN").is_in(filter_kecamatan),
+                                            pl.col("KELURAHAN").is_in(data_poktan.select("KELURAHAN").unique().to_series().to_list()))
+            filter_desa = filter_desa.select("KELURAHAN").unique().to_series().to_list()
+        else:
+            filter_desa = [input.pilih_desa_sipacoai()]
+
+        val_desa_sipacoai.set(filter_desa)
+
+    data_bkb_keluarga = pl.read_csv("data/data_bkb_keluarga.csv", separator=";")
+    @render.text
+    @reactive.event(input.action_button_sipacoai)
+    def jumlah_pendampingan_keluarga():
+        filter_kabupaten = val_kab_sipacoai.get()
+        filter_kecamatan = val_kec_sipacoai.get()
+        filter_desa = val_desa_sipacoai.get()
+        filter_bulan = [input.pilih_bulan_sipacoai()]
+
+        # --- Agregasi BKB ---
+        bkb_hadir = data_bkb_keluarga.filter(
+            pl.col("KABUPATEN").is_in(filter_kabupaten),
+            pl.col("KECAMATAN").is_in(filter_kecamatan),
+            pl.col("KELURAHAN").is_in(filter_desa),
+            pl.col("BULAN").is_in(filter_bulan)
+        ).group_by('PROVINSI').agg([
+            pl.col("JUMLAH KELUARGA ANGGOTA BKB HADIR PERTEMUAN").sum().alias("Keluarga_Hadir_BKB")
+        ])
+
+        # --- Agregasi BKR ---
+        bkr_hadir = data_bkr.filter(
+            pl.col("KABUPATEN").is_in(filter_kabupaten),
+            pl.col("KECAMATAN").is_in(filter_kecamatan),
+            pl.col("KELURAHAN").is_in(filter_desa),
+            pl.col("BULAN").is_in(filter_bulan)
+        ).group_by('PROVINSI').agg([
+            pl.col("JUMLAH KELUARGA ANGGOTA BKR HADIR PERTEMUAN").sum().alias("Keluarga_Hadir_BKR")
+        ])
+
+        # --- Agregasi BKL ---
+        bkl_hadir = data_bkl.filter(
+            pl.col("KABUPATEN").is_in(filter_kabupaten),
+            pl.col("KECAMATAN").is_in(filter_kecamatan),
+            pl.col("KELURAHAN").is_in(filter_desa),
+            pl.col("BULAN").is_in(filter_bulan)
+        ).group_by('PROVINSI').agg([
+            pl.col("JUMLAH ANGGOTA KELUARGA HADIR").sum().alias("Keluarga_Hadir_BKL")
+        ])
+
+        # --- Agregasi PUS ---
+        pus_total = data_pus.filter(
+            pl.col("KABUPATEN").is_in(filter_kabupaten),
+            pl.col("KECAMATAN").is_in(filter_kecamatan),
+            pl.col("KELURAHAN").is_in(filter_desa),
+            pl.col("BULAN").is_in(filter_bulan)
+        ).group_by('PROVINSI').agg([
+            pl.col("PUS").sum().alias("Jumlah_PUS")
+        ])
+
+        # Gabungkan BKB dan BKR
+        df_gabungan = bkb_hadir.join(bkr_hadir, on='PROVINSI')
+
+        # Gabungkan dengan BKL
+        df_gabungan = df_gabungan.join(bkl_hadir, on='PROVINSI')
+
+        # Gabungkan dengan PUS
+        df_gabungan = df_gabungan.join(pus_total, on='PROVINSI')
+
+        # Isi nilai Null (jika ada) yang muncul akibat outer join dengan 0
+        # karena 0 hadir/PUS tidak boleh menghasilkan NA dalam perhitungan.
+        df_gabungan = df_gabungan.fill_null(0)
+
+        # Terapkan rumus: ((BKB + BKR + BKL) / 3) / PUS
+        hasil_kalkulasi = df_gabungan.with_columns(
+            (
+                (pl.col("Keluarga_Hadir_BKB") + pl.col("Keluarga_Hadir_BKR") + pl.col("Keluarga_Hadir_BKL")) / 3
+            ).alias("Pembilang")
+        ).with_columns(
+            # Lakukan pembagian akhir. Untuk menghindari ZeroDivisionError, gunakan when/then/otherwise
+            pl.when(pl.col("Jumlah_PUS") > 0)
+            .then(pl.col("Pembilang") / pl.col("Jumlah_PUS"))
+            .otherwise(0) # Jika Jumlah_PUS adalah 0, hasilnya dianggap 0
+            .alias("Jumlah_Hasil_Akhir")
+        ).select([
+            pl.col('PROVINSI'),
+            pl.col('Jumlah_Hasil_Akhir')
+])
+        return str(round(hasil_kalkulasi.select(pl.col("Jumlah_Hasil_Akhir")).item() * 100,2)).strip('%').replace('.', ',') + "%"
+    
+    @render.text
+    @reactive.event(input.action_button_sipacoai)
+    def jumlah_penggunaan_kka():
+        filter_kabupaten = val_kab_sipacoai.get()
+        filter_kecamatan = val_kec_sipacoai.get()
+        filter_desa = val_desa_sipacoai.get()
+        filter_bulan = [input.pilih_bulan_sipacoai()]
+
+        return format_number(
+            data_bkb_keluarga.filter(
+                pl.col("KABUPATEN").is_in(filter_kabupaten),
+                pl.col("KECAMATAN").is_in(filter_kecamatan),
+                pl.col("KELURAHAN").is_in(filter_desa),
+                pl.col("BULAN").is_in(filter_bulan)
+            ).group_by('PROVINSI').agg([
+                pl.col("KKA").sum()
+            ]).select(pl.col("KKA")).item()
+        )
+    
+    edukasi_kbpp_bumil = pl.read_csv("data/2025-elsimil-bumil.csv", separator=";")
+    edukasi_kbpp_pascasalin = pl.read_csv("data/2025-elsimil-pascasalin.csv", separator=";")
+    @render.text
+    @reactive.event(input.action_button_sipacoai)
+    def jumlah_edukasi_kbpp():
+        filter_kabupaten = val_kab_sipacoai.get()
+        filter_kecamatan = val_kec_sipacoai.get()
+        filter_desa = val_desa_sipacoai.get()
+        filter_bulan = [input.pilih_bulan_sipacoai()]
+
+        edukasi_kbpp = edukasi_kbpp_bumil.filter(
+            pl.col("KABUPATEN").is_in(filter_kabupaten),
+            pl.col("KECAMATAN").is_in(filter_kecamatan),
+            pl.col("KELURAHAN").is_in(filter_desa)
+        ).group_by('PROVINSI').agg([
+            pl.col("JUMLAH BUMIL").sum(),
+            pl.col("KIE PERSEORANGAN").sum(),
+            pl.col("KIE KELOMPOK").sum(),
+            pl.col("KIE PERSEORANGAN DAN KELOMPOK").sum()
+        ]).join(
+            edukasi_kbpp_pascasalin.filter(
+                pl.col("KABUPATEN").is_in(filter_kabupaten),
+                pl.col("KECAMATAN").is_in(filter_kecamatan),
+                pl.col("KELURAHAN").is_in(filter_desa)
+            ).group_by('PROVINSI').agg([
+                pl.col("JUMLAH PASCASALIN").sum(),
+                pl.col("KIE PERSEORANGAN").sum(),
+                pl.col("KIE KELOMPOK").sum(),
+                pl.col("KIE PERSEORANGAN DAN KELOMPOK").sum()
+            ]),
+            on = "PROVINSI"
+        ).with_columns(
+            (((pl.col("KIE PERSEORANGAN") + pl.col("KIE PERSEORANGAN_right") + pl.col("KIE KELOMPOK") + pl.col("KIE KELOMPOK_right") + pl.col("KIE PERSEORANGAN DAN KELOMPOK_right") + pl.col("KIE PERSEORANGAN DAN KELOMPOK")) / (pl.col("JUMLAH BUMIL") + pl.col("JUMLAH PASCASALIN")))* 100).alias('EDUKASI KBPP')
+        ).select(
+            pl.col("EDUKASI KBPP")
+        ).item()
+
+        return str(round(edukasi_kbpp, 2)).strip('%').replace('.', ',') + "%"
+    
+    @render.text
+    @reactive.event(input.action_button_sipacoai)
+    def jumlah_pikr_sipacoai():
+        filter_kabupaten = val_kab_sipacoai.get()
+        filter_kecamatan = val_kec_sipacoai.get()
+        filter_desa = val_desa_sipacoai.get()
+        filter_bulan = [input.pilih_bulan_sipacoai()]
+        return format_number(
+                data_pikr.filter(
+                    pl.col("KABUPATEN").is_in(filter_kabupaten),
+                    pl.col("KECAMATAN").is_in(filter_kecamatan),
+                    pl.col("KELURAHAN").is_in(filter_desa),
+                    pl.col("BULAN").is_in(filter_bulan)
+                ).group_by('PROVINSI').agg([
+                    pl.col("JUMLAH REMAJA HADIR DALAM PERTEMUAN").sum()
+                ]).select(pl.col("JUMLAH REMAJA HADIR DALAM PERTEMUAN")).item()
+        )
+
+    @render.text
+    @reactive.event(input.action_button_sipacoai)
+    def jumlah_mkjp_sipacoai():
+        filter_kabupaten = val_kab_sipacoai.get()
+        filter_kecamatan = val_kec_sipacoai.get()
+        filter_desa = val_desa_sipacoai.get()
+        filter_bulan = [input.pilih_bulan_sipacoai()]
+        return format_number(
+                data_mix.filter(
+                    pl.col("KABUPATEN").is_in(filter_kabupaten),
+                    pl.col("KECAMATAN").is_in(filter_kecamatan),
+                    pl.col("KELURAHAN").is_in(filter_desa),
+                    pl.col("BULAN").is_in(filter_bulan)
+                ).group_by('PROVINSI').agg([
+                    pl.col("IMPLAN").sum(),
+                    pl.col("IUD").sum(),
+                    pl.col("VASEKTOMI").sum(),
+                    pl.col("TUBEKTOMI").sum(),
+                    pl.col("KB MODERN").sum()
+                ]).with_columns(
+                    ((pl.col("IUD") + pl.col("IMPLAN") + pl.col("VASEKTOMI") + pl.col("TUBEKTOMI"))).alias('MKJP')
+                ).select(pl.col("MKJP")).item()   
+        )
+    ### sipacoai
 
 www_dir = Path(__file__).parent / "www"
 app = App(app_ui, server, static_assets=www_dir)
