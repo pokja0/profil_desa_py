@@ -397,7 +397,7 @@ app_ui = ui.page_navbar(
                     ui.input_selectize("pilih_kec_sipacoai", "Pilih Kecamatan", choices=[], multiple=False),
                     ui.input_selectize("pilih_desa_sipacoai", "Pilih Desa/Kelurahan", choices=[], multiple=False),
                     ui.input_selectize("pilih_bulan_sipacoai", "BULAN", 
-                                        choices=daftar_bulan[8:10], selected="SEPTEMBER")#,
+                                        choices=daftar_bulan[8:9], selected="SEPTEMBER")#,
                     # ui.input_selectize("pilih_tahun", "TAHUN", 
                     #                     choices=['2025', '2024'])                    
             ),
